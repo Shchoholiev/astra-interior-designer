@@ -1,7 +1,7 @@
 {
   "name": "interior-desing",
-  "version": "0.1.0",
-  "description": "Find and download suitable 3D models from Poly Haven, ambientCG, BlenderKit, and Sketchfab.",
+  "version": "0.2.0",
+  "description": "Create, furnish, surface, light, render, and review Blender interiors with native Cycles and reusable 3D assets.",
   "author": {
     "name": "Shchoholiev",
     "url": "https://github.com/Shchoholiev"
@@ -13,12 +13,16 @@
     "models",
     "blender",
     "threejs",
-    "assets"
+    "assets",
+    "interior-design",
+    "cycles",
+    "materials",
+    "rendering"
   ],
   "interface": {
-    "displayName": "Interior Desing",
-    "shortDescription": "Find realistic 3D models across four asset libraries.",
-    "longDescription": "Search with one subagent per asset source, compare visual fit and licensing, and verify downloadable models for Blender or Three.js.",
+    "displayName": "Interior Design",
+    "shortDescription": "Build and refine Blender interiors with Cycles.",
+    "longDescription": "Six focused skills cover interior workflows, reference matching and scene assembly, model discovery, native Cycles materials, photographic lighting and rendering, and evidence-based visual refinement. Uses the runtime's existing Blender MCP connection and preserves editable scene checkpoints.",
     "developerName": "Shchoholiev",
     "category": "Productivity",
     "capabilities": [
@@ -26,6 +30,8 @@
       "Write"
     ],
     "defaultPrompt": [
+      "Recreate this interior reference in Blender and render it with Cycles.",
+      "Improve this room's materials and lighting while preserving its layout.",
       "Find a free, realistic electric kettle model for a Three.js kitchen."
     ]
   }
