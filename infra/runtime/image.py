@@ -11,7 +11,7 @@ from pathlib import Path
 import modal
 
 BASE_IMAGE_ID = "im-ELY2dohC6fxZVS7MuAnm3x"
-IMAGE_NAME = "astra-blender:v4"
+IMAGE_NAME = "astra-blender:v5"
 APP_NAME = "astra-interior-designer-blender"
 HERE = Path(__file__).resolve().parent
 PLUGIN = HERE.parents[1] / "plugins" / "interior-desing"
@@ -55,6 +55,7 @@ def production_image():
             "python /opt/astra/runtime.py --help",
             "blender --version && codex --version && codex exec-server --help",
             "python -c \"import boto3; assert boto3.__version__ == '1.43.91'\"",
+            "python -c \"import PIL; assert PIL.__version__ == '12.1.1'\"",
             "test ! -e /opt/astra/fixtures && test ! -e /workspace/scene.blend",
         )
     )

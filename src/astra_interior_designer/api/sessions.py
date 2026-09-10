@@ -95,6 +95,9 @@ class Session(BaseModel):
     next_cursor: str | None
     scene_url: str | None
     scene_url_expires_at: datetime | None
+    render_url: str | None
+    render_url_expires_at: datetime | None
+    render_sha256: str | None
 
 
 def get_services(request: Request) -> Services:
@@ -154,7 +157,9 @@ async def get_session(
     sandbox_status = "missing"
     if record.sandbox_id:
         sandbox_status = (await services.sandbox.get(record.sandbox_id)).status
-    scene = await services.files.scene_url(session_id)
+    scene, render = await asyncio.gather(
+        services.files.scene_url(session_id), services.files.render_url(session_id)
+    )
     return Session(
         session_id=record.session_id,
         title=record.title,
@@ -164,6 +169,9 @@ async def get_session(
         next_cursor=history.next_cursor,
         scene_url=scene.url if scene else None,
         scene_url_expires_at=scene.expires_at if scene else None,
+        render_url=render.url if render else None,
+        render_url_expires_at=render.expires_at if render else None,
+        render_sha256=render.sha256 if render else None,
     )
 
 

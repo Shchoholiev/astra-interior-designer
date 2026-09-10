@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     agent_model: str = "gpt-6-astra"
     cors_origins: tuple[str, ...] = ()
 
-    modal_image: str = "astra-blender:v4"
+    modal_image: str = "astra-blender:v5"
     modal_launch_command: tuple[str, ...] = ()
     modal_health_command: tuple[str, ...] = ()
     modal_reconnect_command: tuple[str, ...] = ()

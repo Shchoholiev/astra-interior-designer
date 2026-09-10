@@ -51,13 +51,13 @@ The provisioned resources are in `us-east-1`:
 Local AWS access uses profile `astra-interior-designer`. Deployment should use an
 IAM role with access to these resources and the configured secret. Set
 `SANDBOX_S3_ROLE_ARN` to a role the backend can assume; each sandbox receives
-temporary credentials further restricted to its own inputs and scene object.
+temporary credentials further restricted to its own inputs, scene and render objects.
 The sandbox lifetime is capped below those credentials' expiry.
 
-Scene download URLs last 12 hours. Their signing credentials must cover the full
+Scene and render download URLs last 12 hours. Their signing credentials must cover the full
 12 hours; a short-lived AWS login or runtime role is insufficient. The optional
 `S3_SIGNING_*` pair selects a separate signer, whose permissions must cover the
-session inputs and scene objects. Short-lived credentials can sign upload URLs,
+session inputs, scene and render objects. Short-lived credentials can sign upload URLs,
 whose lifetime is capped at 15 minutes and their remaining validity.
 
 ## Modal runtime
@@ -72,7 +72,7 @@ Startup runs in the background; `GET /sessions/{session_id}` exposes `starting`,
 `idle`, or `failed`. The first message waits for startup through the existing SSE
 progress stream. Startup failure preserves the session so its status remains visible.
 
-The default `astra-blender:v4` image layers the existing S3/executor runtime onto
+The default `astra-blender:v5` image layers the existing S3/executor runtime onto
 the tested Blender tooling image. Build and publish it with
 `infra/runtime/image.py`; the standalone tooling image is its base. The backend
 retains the `/opt/astra/runtime.py` start/health/reconnect/sync-inputs commands.
@@ -99,6 +99,12 @@ Upstream items too large for DynamoDB retain their IDs and an explicit
 Set `CORS_ORIGINS` for the backend and configure bucket CORS for the same frontend
 origin with `GET`, `HEAD`, and `PUT` access. Upload directly using the returned
 URL and required headers; load the session's `scene_url` with Three.js.
+Use `render_url` to display or download the latest exported PNG; the session
+response also returns `render_url_expires_at` and `render_sha256`. All three are
+null before the first successful image upload. Exported images remain available
+after the sandbox stops. The agent promotes accepted renders to
+`/workspace/render.png` and confirms upload through the supervisor's read-only
+receipt at `/run/astra-exports/render-upload.json`. Preview PNGs stay local.
 
 ## Checks
 

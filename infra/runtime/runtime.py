@@ -20,6 +20,7 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -38,6 +39,7 @@ class Config:
     workspace: Path = Path("/workspace")
     state_dir: Path = Path("/run/astra")
     blender_state_dir: Path = Path("/run/astra-blender")
+    delivery_state_dir: Path = Path("/run/astra-exports")
 
     @classmethod
     def from_env(cls, env):
@@ -162,6 +164,45 @@ def signature(info):
     return info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns
 
 
+def valid_png(stream):
+    """Check PNG integrity and decode pixels before publishing a render."""
+    from PIL import Image
+
+    try:
+        stream.seek(0)
+        with Image.open(stream, formats=("PNG",)) as image:
+            image.verify()
+        stream.seek(0)
+        with Image.open(stream, formats=("PNG",)) as image:
+            image.load()
+        stream.seek(0)
+        return True
+    except (OSError, ValueError, SyntaxError, Image.DecompressionBombError):
+        return False
+
+
+@contextlib.contextmanager
+def stable_snapshot(path, current, state_dir):
+    """Copy an export into root-owned storage, rejecting concurrent writes."""
+    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    with (
+        os.fdopen(descriptor, "rb") as source,
+        tempfile.TemporaryFile(dir=state_dir) as snapshot,
+    ):
+        if signature(os.fstat(source.fileno())) != current:
+            yield None
+            return
+        shutil.copyfileobj(source, snapshot, length=1024 * 1024)
+        if signature(os.fstat(source.fileno())) != current:
+            yield None
+            return
+        try:
+            unchanged = signature(path.lstat()) == current
+        except FileNotFoundError:
+            unchanged = False
+        yield snapshot if unchanged else None
+
+
 class WorkspaceSync:
     def __init__(self, config, client):
         self.config = config
@@ -171,6 +212,10 @@ class WorkspaceSync:
         self.pending_scene = None
         self.uploaded_scene = None
         self.uploaded_hash = None
+        self.pending_render = None
+        self.uploaded_render = None
+        self.uploaded_render_hash = None
+        self.render_receipt = None
 
     def download(self, key, relative, etag, *, scene=False):
         with destination_parent(self.config.workspace, relative) as (parent, name):
@@ -265,22 +310,8 @@ class WorkspaceSync:
         if current != self.pending_scene and not force:
             self.pending_scene = current
             return
-        descriptor = os.open(scene, os.O_RDONLY | os.O_NOFOLLOW)
-        with (
-            os.fdopen(descriptor, "rb") as source,
-            tempfile.TemporaryFile(
-                dir=self.config.state_dir,
-            ) as snapshot,
-        ):
-            if signature(os.fstat(source.fileno())) != current:
-                return
-            shutil.copyfileobj(source, snapshot, length=1024 * 1024)
-            if signature(os.fstat(source.fileno())) != current:
-                return
-            try:
-                if signature(scene.lstat()) != current:
-                    return
-            except FileNotFoundError:
+        with stable_snapshot(scene, current, self.config.state_dir) as snapshot:
+            if snapshot is None:
                 return
             if not valid_glb(snapshot):
                 return  # Blender may be in the middle of writing the export.
@@ -295,6 +326,65 @@ class WorkspaceSync:
                 )
                 self.uploaded_hash = digest
             self.uploaded_scene = current
+
+    def write_render_receipt(self):
+        """Only the supervisor can replace this agent-readable upload receipt."""
+        directory = self.config.delivery_state_dir
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w", dir=directory, prefix=".render-", delete=False
+            ) as output:
+                temporary = Path(output.name)
+                json.dump(self.render_receipt, output)
+                output.flush()
+                os.fsync(output.fileno())
+                os.fchown(output.fileno(), 0, 0)
+                os.fchmod(output.fileno(), 0o444)
+            os.replace(temporary, directory / "render-upload.json")
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+
+    def publish_render(self, *, force=False):
+        render = self.config.workspace / "render.png"
+        try:
+            info = render.lstat()
+        except FileNotFoundError:
+            return
+        if not stat.S_ISREG(info.st_mode):
+            raise ValueError("Render must be a regular file, not a symlink")
+        current = signature(info)
+        if current == self.uploaded_render:
+            return
+        if current != self.pending_render and not force:
+            self.pending_render = current
+            return
+        with stable_snapshot(render, current, self.config.state_dir) as snapshot:
+            if snapshot is None or not valid_png(snapshot):
+                return
+            digest = hashlib.file_digest(snapshot, "sha256").hexdigest()
+            if digest != self.uploaded_render_hash:
+                snapshot.seek(0)
+                key = self.config.prefix + "render.png"
+                self.client.put_object(
+                    Bucket=self.config.bucket,
+                    Key=key,
+                    Body=snapshot,
+                    ContentType="image/png",
+                    CacheControl="no-cache",
+                    Metadata={"sha256": digest},
+                )
+                self.uploaded_render_hash = digest
+                self.render_receipt = {
+                    "session_id": self.config.session_id,
+                    "object_key": key,
+                    "sha256": digest,
+                    "uploaded_at": datetime.now(UTC).isoformat(),
+                }
+            # Receipt failures remain retryable even when the bytes reached S3.
+            self.write_render_receipt()
+            self.uploaded_render = current
 
 
 def probe_blender(*, timeout=2, port=9876):
@@ -499,13 +589,18 @@ class Supervisor:
 
     def storage_loop(self):
         while not self.stopping.wait(2):
-            try:
-                self.sync.sync_inputs()
-                self.sync.publish_scene()
-                self.storage_error = None
-            except Exception as error:
-                self.storage_error = type(error).__name__
-                print("ASTRA_STORAGE_RETRY " + self.storage_error, flush=True)
+            storage_error = None
+            for sync in (
+                self.sync.sync_inputs,
+                self.sync.publish_scene,
+                self.sync.publish_render,
+            ):
+                try:
+                    sync()
+                except Exception as error:
+                    storage_error = type(error).__name__
+                    print("ASTRA_STORAGE_RETRY " + storage_error, flush=True)
+            self.storage_error = storage_error
 
     def wait_for(self, condition, timeout, message):
         deadline = time.monotonic() + timeout
@@ -520,6 +615,7 @@ class Supervisor:
 
     def run(self):
         prepare_directory(self.config.state_dir, 0o700)
+        prepare_directory(self.config.delivery_state_dir, 0o755)
         prepare_directory(
             self.config.blender_state_dir, 0o700, uid=AGENT_UID, gid=AGENT_GID
         )
@@ -597,13 +693,17 @@ class Supervisor:
                     if storage_thread is not None:
                         storage_thread.join(timeout=25)
                     if storage_thread is None or not storage_thread.is_alive():
-                        try:
-                            self.sync.publish_scene(force=True)
-                        except Exception as error:
-                            print(
-                                "ASTRA_FINAL_UPLOAD_FAILED " + type(error).__name__,
-                                flush=True,
-                            )
+                        for publish in (
+                            self.sync.publish_scene,
+                            self.sync.publish_render,
+                        ):
+                            try:
+                                publish(force=True)
+                            except Exception as error:
+                                print(
+                                    "ASTRA_FINAL_UPLOAD_FAILED " + type(error).__name__,
+                                    flush=True,
+                                )
                     control_path.unlink(missing_ok=True)
 
 
