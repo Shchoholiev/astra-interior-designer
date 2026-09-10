@@ -68,7 +68,16 @@ The plus sign above is part of the query grammar; encode it as `%2B` when constr
 
 For free requests, inspect `isFree` and the current account's `canDownload`. Search can return paid or inaccessible results. Do not label a result accessible solely because it has a file URL. Preserve both IDs; version ID and base ID are not interchangeable.
 
-Inspect each file's `fileType`. Some assets expose `gltf` as well as `blend` and resolution variants. Choose based on target and actual contents; do not assume every asset requires Blender conversion. File `downloadUrl` may resolve through an API step to a signed CDN URL. When implementing retrieval, consult the official client's current download flow and propagate required returned identifiers. Do not send the API key to the signed file host.
+Inspect each file's `fileType`. Some assets expose `gltf` as well as `blend` and resolution variants. Choose based on target and actual contents; do not assume every asset requires Blender conversion.
+
+Resolve the chosen file using the [official client's download flow](https://github.com/BlenderKit/bk_client/blob/main/client/download.go):
+
+1. Obtain the scene's BlenderKit UUID from the integration. For a standalone downloader without one, generate a UUID once and retain it with the scene's local task metadata. This is a scene identifier, not the asset ID or API key.
+2. Request the returned provider API `downloadUrl` with URL-encoded query parameter `scene_uuid=<scene UUID>` and provider authentication. Include `scene_uuid` even for a free asset; omitting it produced HTTP 403 in the tested resolver.
+3. Require HTTP 200 and a nonempty `filePath` in the JSON response. Keep any returned `uuid` and `fileType` with the download record; `filePath` is the signed file URL, not a local path.
+4. Fetch that signed URL without the provider Authorization header. Verify the downloaded file and dependencies before importing.
+
+For a resolver 403, check the request's scene UUID, authentication, entitlement, and error body before classifying the failure. A missing parameter is not evidence of a paid-only asset; adding it does not bypass access restrictions. Retry only after correcting a demonstrated request problem.
 
 Licenses include CC0 and royalty-free terms. Royalty-free does not mean permission to redistribute the source asset as an extractable browser download. Verify the applicable license before selecting it for that purpose; suggest a suitable CC0/CC alternative when required. Use a returned or verified website asset page for the source link rather than inventing a slug.
 

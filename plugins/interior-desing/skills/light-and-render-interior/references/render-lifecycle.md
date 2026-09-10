@@ -10,6 +10,14 @@ Inspect helper defaults. A method named `queue_render` can also apply fixture se
 
 GPU setup requires a supported backend, enabled devices in Cycles preferences, and a scene configured for GPU rendering. Use runtime or render evidence before reporting the actual device used; distinguish configuration from measured execution. [Blender GPU rendering](https://docs.blender.org/manual/sv/latest/render/cycles/gpu_rendering.html)
 
+## Interactive render helpers
+
+When adapting a helper for interactive Cycles, use external logs/status for progress. Avoid adding a Python `bpy.app.handlers.render_stats` callback for per-update reporting: a macOS Blender 5.2.1 process sample implicated a Cycles progress/draw and Python GIL lock conflict in this path. This is a specific observed failure, not proof that all Python handlers are unsafe.
+
+If callbacks are needed, keep lifecycle handlers such as render start/write/complete/cancel minimal. Defer scene operations and output decoding until rendering is idle through the runtime's supported scheduling mechanism. Remove only callbacks owned by this helper; preserve unrelated add-on handlers.
+
+Check whether the runtime supports `scene.render.use_lock_interface` for interactive rendering and preserve its previous value when temporarily changing it. The tested recovery removed the statistics callback and enabled interface locking together; neither change alone was isolated as a sufficient fix. A suspected freeze still needs process/log evidence and the runtime's recovery procedure before restarting Blender.
+
 ## Track the job
 
 Map the actual helper's states to this distinction; do not invent status files or require these exact state names when the runtime uses others:

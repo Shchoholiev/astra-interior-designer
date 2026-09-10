@@ -34,3 +34,9 @@ Scene edits and imports use Blender MCP. File operations and status inspection u
 - “Compare these two renders and explain the largest regressions without editing the scene.”
 
 Edited work should produce recoverable native scene checkpoints and inspected image outputs. The native `.blend` remains the editable master; a GLB viewer export is optional. Read-only reviews stay read-only, and unavailable rendering is reported as a verification limit.
+
+## Testing this plugin
+
+When asked to test the plugin, record its source revision, dirty state, and the skill/reference files actually read. If the source changes during the run, identify the instructions used and which changes remain untested.
+
+Report technical delivery evidence and the final visual assessment separately. Link the inspected images and editable scene; give concrete dominant findings with their outcome and remaining constraints. Distinguish a plugin instruction gap from a task-helper bug, unsupported MCP command, or provider access failure. For each recovery, record what changed and what the next run demonstrated; changing two things together does not establish which one fixed the failure. Label instruction dry runs separately from live Blender execution, and limit conclusions to the tested revision and paths.

@@ -37,4 +37,14 @@ For an instruction to fix or improve, preserve the previous scene and image, the
 
 Change a small coherent set of variables per pass. Compare the original defect and nearby regions for regressions, then retain the better result or restore the earlier checkpoint. Keep rejected passes identifiable rather than overwriting them. Stop iterating when the requested defects are addressed or remaining limits require unavailable inputs, scope changes, or more resources than the user allowed.
 
-Deliver the inspected image(s), corresponding native scene for edited work, what visibly improved or regressed, and remaining limits. Distinguish a faithful approximation from an exact reconstruction and technical completion from visual success.
+## Final visual assessment
+
+After the last pass, deliver the inspected image(s) and corresponding native scene for edited work with:
+
+- **Visual verdict:** how well the image meets the brief, supported by visible strengths and weaknesses. Report technical completion separately.
+- **Dominant findings:** for each significant remaining issue, name the region, visible evidence, priority, and next correction. Mark earlier findings **fixed**, **remaining**, or **unverified**. A fixed finding needs an inspected comparison; a remaining finding needs the specific constraint that stopped work.
+- **Comparison:** identify the accepted and rejected passes, visible improvements or regressions, and any changed comparison settings.
+
+For an authorized creation or improvement task, a prominent, fixable defect still within scope and budget requires another correction and inspected render before delivery. For review-only work, recommend the correction without editing. Judge the intended style: deliberate frosted glazing or clean surfaces need not be defects.
+
+An inspection checkbox, a successful render, or a generic statement that furnishings are approximate does not describe visual quality. Name the actual unresolved appearance and its effect on the image; distinguish a faithful approximation from an exact reconstruction.
