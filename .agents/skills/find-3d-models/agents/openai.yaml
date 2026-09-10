@@ -1,4 +1,0 @@
-interface:
-  display_name: "Find 3D Models"
-  short_description: "Find downloadable 3D assets for a requested object"
-  default_prompt: "Use $find-3d-models to find a realistic, free 3D model of the requested object for Blender or Three.js."
