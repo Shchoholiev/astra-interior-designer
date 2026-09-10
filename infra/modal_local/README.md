@@ -151,3 +151,8 @@ After validation, publish an image under a fresh name if needed:
 ```
 
 The command protects the existing `astra-blender:v1` name.
+
+The backend uses `astra-blender:v3`, built by `infra/runtime/image.py` on this
+tested tooling image. That layer retains the backend's S3 synchronization and
+unprivileged process contract. Its launch/health/reconnect/sync-inputs commands
+remain under `/opt/astra/runtime.py`; see `../runtime/README.md`.

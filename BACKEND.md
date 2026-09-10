@@ -67,9 +67,13 @@ secret containing the restricted executor credential. The adapter provisions
 `RTX-PRO-6000` compute and waits for both Blender health and an actual Agents API
 executor connection. Reconnection must preserve the existing Blender process.
 
-The production `astra-blender:v2` runtime is a separate prerequisite. The tested
-Blender probe image alone does not provide executor attachment or S3 transfer.
-Do not point the backend at it as a working production runtime.
+The default `astra-blender:v3` image layers the existing S3/executor runtime onto
+the tested Blender tooling image. Build and publish it with
+`infra/runtime/image.py`; the standalone tooling image is its base. The backend
+retains the `/opt/astra/runtime.py` start/health/reconnect/sync-inputs commands.
+New workspaces contain no bundled scene or assets. Session uploads and persisted
+GLB exports are restored at runtime; Blender uses the shared native-save and
+asynchronous OptiX render helpers.
 
 ## Frontend
 

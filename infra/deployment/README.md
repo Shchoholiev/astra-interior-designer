@@ -39,7 +39,7 @@ The dedicated S3 signing credentials must cover the full 12-hour scene URL lifet
 
 ## Runtime and verification
 
-Build the Blender sandbox image with `.venv-modal/bin/python infra/runtime/image.py`; add `--publish` after validation to publish `astra-blender:v2`.
+Build the Blender sandbox image with `.venv-modal/bin/python infra/runtime/image.py`; add `--publish` after validation to publish `astra-blender:v3`. The deployment template and backend defaults select this version, which adds the S3/executor runtime to the tested Blender tooling image.
 The Fargate application creates Modal sandboxes from that image and uses the `astra-openai-executor` Modal secret for their executor credential.
 New sandboxes download their session's S3 inputs in the background. The supervisor owns `/workspace/inputs`; Blender and the executor run as `astra-agent` and can only read those files. Attachment delivery is confirmed before submitting a message. Existing v1 sandboxes retain their original background polling and writable inputs until replaced; they do not support the pre-message sync command.
 `GET /health` is unauthenticated and returns `{"status":"ok"}`; `/sessions` routes require the application Bearer token.
