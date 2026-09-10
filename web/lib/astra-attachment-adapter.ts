@@ -51,9 +51,9 @@ export class AstraAttachmentAdapter implements AttachmentAdapter {
     };
   }
 
-  async remove(attachment: CompleteAttachment) {
+  async remove(attachment: PendingAttachment | CompleteAttachment) {
     this.objectKeys.delete(attachment.id);
-    for (const part of attachment.content) {
+    for (const part of attachment.content ?? []) {
       const url = part.type === "image" ? part.image : part.type === "file" ? part.data : null;
       if (url?.startsWith("blob:")) URL.revokeObjectURL(url);
     }

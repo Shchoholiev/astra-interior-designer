@@ -63,7 +63,7 @@ function ChatMessage() {
   );
 }
 
-export function ChatPanel() {
+export function ChatPanel({ onCancel }: { onCancel?: () => void }) {
   return (
     <ThreadPrimitive.Root className="relative flex min-h-0 flex-1 flex-col bg-[#f5f1e9]">
       <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pt-5">
@@ -91,7 +91,7 @@ export function ChatPanel() {
                   <ComposerPrimitive.Send asChild><Button size="icon" className="rounded-xl" aria-label="Send message"><ArrowUp /></Button></ComposerPrimitive.Send>
                 </AuiIf>
                 <AuiIf condition={(state) => state.thread.isRunning}>
-                  <ComposerPrimitive.Cancel asChild><Button size="icon" className="rounded-xl" aria-label="Cancel generation"><Square className="fill-current" /></Button></ComposerPrimitive.Cancel>
+                  <ComposerPrimitive.Cancel asChild><Button onClick={onCancel} size="icon" className="rounded-xl" aria-label="Cancel generation"><Square className="fill-current" /></Button></ComposerPrimitive.Cancel>
                 </AuiIf>
               </div>
             </div>

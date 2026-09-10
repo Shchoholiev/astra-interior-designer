@@ -3,6 +3,7 @@
 import {
   AssistantRuntimeProvider,
   type ChatModelAdapter,
+  type CompleteAttachment,
   type ThreadAssistantMessagePart,
   type ThreadMessageLike,
   type ToolCallMessagePart,
@@ -95,11 +96,23 @@ function savedMessage(message: AstraMessage): ThreadMessageLike | null {
     };
   }
   const text = messageText(content);
-  if (!text || (message.role !== "user" && message.role !== "assistant")) return null;
+  const attachments: CompleteAttachment[] = message.role === "user"
+    ? (message.attachment_keys ?? []).map((key) => ({
+        id: key,
+        // Upload keys use inputs/<uuid>-<filename>. Keep the original filename,
+        // but don't invent a public URL for the private S3 object.
+        name: key.split("/").pop()!.replace(/^[a-f0-9]{32}-/i, ""),
+        type: "file",
+        status: { type: "complete" },
+        content: [],
+      }))
+    : [];
+  if ((!text && !attachments.length) || (message.role !== "user" && message.role !== "assistant")) return null;
   return {
     id: message.message_id,
     role: message.role,
     content: text,
+    ...(message.role === "user" ? { attachments } : {}),
     createdAt: new Date(message.created_at),
   };
 }
@@ -159,8 +172,6 @@ function SessionWorkspace({ initialSession, sessions, onSelectSession, onNewSess
         ...tools.values(),
         ...(output ? [{ type: "text" as const, text: output }] : []),
       ];
-      const cancel = () => { void api.cancel(); };
-      abortSignal.addEventListener("abort", cancel, { once: true });
       setProgress({ label: "Starting the design session" });
 
       try {
@@ -237,7 +248,6 @@ function SessionWorkspace({ initialSession, sessions, onSelectSession, onNewSess
           : "I couldn't complete this generation.";
         yield { content: content(), status: { type: "incomplete", reason: "error" } };
       } finally {
-        abortSignal.removeEventListener("abort", cancel);
         setProgress(null);
       }
     },
@@ -267,7 +277,7 @@ function SessionWorkspace({ initialSession, sessions, onSelectSession, onNewSess
                 {backendEnabled && <Button onClick={onNewSession} size="icon-sm" variant="outline" className="shrink-0 rounded-full" aria-label="Start a new room"><Plus /></Button>}
                 <span className="rounded-full border border-[#d7cfc2] px-2 py-1 text-[11px] text-[#6f756f]">{backendEnabled ? "Connected" : "Demo"}</span>
               </header>
-              <ChatPanel />
+              <ChatPanel onCancel={backendEnabled ? () => { void api.cancel(); } : undefined} />
             </section>
           </ResizablePanel>
           <ResizableHandle withHandle className="bg-[#17221c]" />
