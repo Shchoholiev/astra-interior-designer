@@ -22,7 +22,8 @@ ENV NODE_ENV=production \
     PORT=5173
 
 WORKDIR /app
-RUN addgroup --system --gid 1001 nodejs \
+RUN apk upgrade --no-cache \
+    && addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 nextjs
 
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
