@@ -11,7 +11,7 @@ from pathlib import Path
 import modal
 
 BASE_IMAGE_ID = "im-ELY2dohC6fxZVS7MuAnm3x"
-IMAGE_NAME = "astra-blender:v5"
+IMAGE_NAME = "astra-blender:v6"
 APP_NAME = "astra-interior-designer-blender"
 HERE = Path(__file__).resolve().parent
 PLUGIN = HERE.parents[1] / "plugins" / "interior-desing"
