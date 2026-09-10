@@ -32,6 +32,8 @@ Ordinary clear glass often starts near IOR 1.5 and water near 1.33, with values 
 
 For a single-sheet approximation, inspect whether the running Blender version supports the intended thin-surface model. Do not invent a socket or treat thin-film interference as a thin-wall setting. If correct appearance needs added thickness, explain that geometry dependency.
 
+For clear windows, keep the optical glazing separate from the outside photograph. Follow [window views](../../build-interior-scene/references/window-views.md) for the exterior card and visibility through transmission; an opaque photo assigned to the pane removes the glass behavior.
+
 ## Leaves and petals
 
 Preserve atlas color, vertex-color variation, normals, and cutout masks. Apply translucency to the foliage region, keeping stems and pots on their appropriate surfaces.

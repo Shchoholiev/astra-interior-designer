@@ -25,6 +25,8 @@ Model architectural pieces with credible thickness, softened edges, and contact 
 
 Use [find-3d-models](../find-3d-models/SKILL.md) when a suitable existing asset would improve the requested object. Read [asset integration](references/asset-integration.md) before importing. Geometry or asset substitutions should preserve the user's constraints, not merely fill space.
 
+Give visible clear windows an intentional outside view. For a fixed interior camera, a suitable exterior photograph on a plane beyond the glazing is a useful default. Read [window views](references/window-views.md) for sourcing, placement, and daylight interaction; a blank colored surface is not a finished exterior view.
+
 ## Verify the assembled scene
 
 Check the final camera and at least one diagnostic view for floating feet, intersecting furniture, wall penetrations, incorrect plant scale, duplicated objects, and hidden render geometry. Compare large negative spaces and occlusions before adding small decorative props. Keep plausible circulation for a design brief; do not claim dimensions inferred from a photograph are construction measurements.

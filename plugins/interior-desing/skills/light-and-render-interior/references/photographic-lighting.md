@@ -10,6 +10,8 @@ Broad light sources soften shadows and shape large reflections. Excessive fronta
 
 For exterior contribution, inspect windows, glazing, wall thickness, and unintended blockers. An environment texture is optional; use it when its light and reflection content suit the scene. Keep downloaded HDRIs local with provenance and a portable scene path. A world color or appropriate area light can also support the task without acquiring a new asset.
 
+When the window is in frame, provide an intentional visible exterior as well as daylight. Follow [window views](../../build-interior-scene/references/window-views.md) for a photographic backdrop plane. Match the photograph's light direction and weather to the room lighting, and check that the card neither blocks daylight nor adds unwanted illumination. Keep an approved camera and light rig stable while verifying the view.
+
 ## Practical fixtures and mixed light
 
 Model the emitting region and its supporting light consistently. A bright visible strip and an extra light can double the intended contribution. Use an additional sampling-friendly source deliberately and check that its reflections and spill do not contradict the fixture.
