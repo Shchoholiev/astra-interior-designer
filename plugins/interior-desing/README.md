@@ -11,6 +11,7 @@ A portable Codex plugin for creating and refining Blender interiors with native 
 | [find-3d-models](skills/find-3d-models/SKILL.md) | Model discovery, comparison, verified downloads, and provenance. |
 | [cycles-materials](skills/cycles-materials/SKILL.md) | Native materials, PBR mapping, physical texture scale, and surface repairs. |
 | [light-and-render-interior](skills/light-and-render-interior/SKILL.md) | Photographic light balance, Cycles previews/finals, and render lifecycle checks. |
+| [export-viewer-render](skills/export-viewer-render/SKILL.md) | High-resolution PNG export from an exact Three.js viewer camera, with scene-version verification and delivery confirmation. |
 | [review-interior-render](skills/review-interior-render/SKILL.md) | Image-based diagnosis, comparisons, and targeted realism improvements. |
 
 The complete workflow routes to these focused skills as needed. Each focused skill also supports an existing scene without restarting the whole process. Supporting references hold the conditional detail.

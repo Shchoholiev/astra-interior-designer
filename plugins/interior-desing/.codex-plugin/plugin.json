@@ -1,6 +1,6 @@
 {
   "name": "interior-desing",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Create, furnish, surface, light, render, and review Blender interiors with native Cycles and reusable 3D assets.",
   "author": {
     "name": "Shchoholiev",
@@ -22,7 +22,7 @@
   "interface": {
     "displayName": "Interior Design",
     "shortDescription": "Build and refine Blender interiors with Cycles.",
-    "longDescription": "Six focused skills cover interior workflows, reference matching and scene assembly, model discovery, native Cycles materials, photographic lighting and rendering, and evidence-based visual refinement. Uses the runtime's existing Blender MCP connection and preserves editable scene checkpoints.",
+    "longDescription": "Seven focused skills cover interior workflows, reference matching and scene assembly, model discovery, native Cycles materials, photographic lighting and rendering, exact viewer-camera image exports, and evidence-based visual refinement. Uses the runtime's existing Blender MCP connection and preserves editable scene checkpoints.",
     "developerName": "Shchoholiev",
     "category": "Productivity",
     "capabilities": [
