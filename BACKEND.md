@@ -67,6 +67,11 @@ secret containing the restricted executor credential. The adapter provisions
 `RTX-PRO-6000` compute and waits for both Blender health and an actual Agents API
 executor connection. Reconnection must preserve the existing Blender process.
 
+`POST /sessions` returns its saved session ID before sandbox startup finishes.
+Startup runs in the background; `GET /sessions/{session_id}` exposes `starting`,
+`idle`, or `failed`. The first message waits for startup through the existing SSE
+progress stream. Startup failure preserves the session so its status remains visible.
+
 The default `astra-blender:v3` image layers the existing S3/executor runtime onto
 the tested Blender tooling image. Build and publish it with
 `infra/runtime/image.py`; the standalone tooling image is its base. The backend
