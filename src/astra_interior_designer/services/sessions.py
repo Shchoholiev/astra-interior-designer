@@ -197,9 +197,9 @@ class SessionService:
         bucket_name: str,
         model: str = "gpt-6-astra",
         instructions: str = (
-            "You are an interior design assistant. Use Blender and its installed MCP "
-            "tools to edit scenes. Input files are read-only local copies in "
-            "/workspace/inputs; "
+            "You are an interior design assistant. Use the installed Interior Design "
+            "skills and Blender MCP tools to edit scenes. Input files are read-only "
+            "local copies in /workspace/inputs; "
             "copy them elsewhere in /workspace if edits are needed. Export a "
             "self-contained GLB to /workspace/scene.glb for the browser viewer."
         ),
@@ -247,7 +247,11 @@ class SessionService:
                 "instructions": self.instructions,
                 "tools": [_BLENDER_TOOL],
             },
-            environment={"type": "self_hosted", "workspace_directory": "/workspace"},
+            environment={
+                "type": "self_hosted",
+                "workspace_directory": "/workspace",
+                "capability_directories": ["/opt/astra/plugins/interior-desing"],
+            },
         )
         session = _AgentSession(self.sdk, info)
         sandbox_id = None

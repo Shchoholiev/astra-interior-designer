@@ -72,13 +72,18 @@ Startup runs in the background; `GET /sessions/{session_id}` exposes `starting`,
 `idle`, or `failed`. The first message waits for startup through the existing SSE
 progress stream. Startup failure preserves the session so its status remains visible.
 
-The default `astra-blender:v3` image layers the existing S3/executor runtime onto
+The default `astra-blender:v4` image layers the existing S3/executor runtime onto
 the tested Blender tooling image. Build and publish it with
 `infra/runtime/image.py`; the standalone tooling image is its base. The backend
 retains the `/opt/astra/runtime.py` start/health/reconnect/sync-inputs commands.
 New workspaces contain no bundled scene or assets. Session uploads and persisted
 GLB exports are restored at runtime; Blender uses the shared native-save and
 asynchronous OptiX render helpers.
+
+The image includes the complete Interior Design plugin at
+`/opt/astra/plugins/interior-desing`. New sessions register that path in
+`environment.capability_directories`, exposing its six skills and references to
+the agent without copying or downloading them at startup.
 
 ## Frontend
 

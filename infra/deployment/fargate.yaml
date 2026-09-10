@@ -333,7 +333,7 @@ Resources:
             - {Name: AGENT_MODEL, Value: gpt-6-astra}
             - Name: CORS_ORIGINS
               Value: '["http://localhost:3000","http://localhost:5173"]'
-            - {Name: MODAL_IMAGE, Value: 'astra-blender:v3'}
+            - {Name: MODAL_IMAGE, Value: 'astra-blender:v4'}
             - Name: MODAL_LAUNCH_COMMAND
               Value: '["python","/opt/astra/runtime.py","start"]'
             - Name: MODAL_HEALTH_COMMAND
