@@ -443,12 +443,20 @@ class Supervisor:
 
     def blender_busy(self):
         try:
-            return (
+            if (
                 json.loads(
                     (self.config.blender_state_dir / "blender-command.json").read_text()
                 ).get("busy")
                 is True
-            )
+            ):
+                return True
+        except (OSError, ValueError):
+            pass
+        try:
+            # The MCP call returns before an asynchronous render finishes.
+            return json.loads(
+                (self.config.blender_state_dir / "render.json").read_text()
+            ).get("status") in {"queued", "rendering", "image_written"}
         except (OSError, ValueError):
             return False
 
@@ -552,6 +560,7 @@ class Supervisor:
                         [
                             "blender",
                             "--factory-startup",
+                            "--disable-autoexec",
                             "-noaudio",
                             "--python-exit-code",
                             "1",

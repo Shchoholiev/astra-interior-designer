@@ -1,0 +1,4 @@
+blender-mcp==1.9.1
+mcp==1.30.0
+requests==2.34.2
+Pillow==12.1.1

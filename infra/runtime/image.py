@@ -1,4 +1,4 @@
-"""Build the production runtime on the verified, named Blender software image.
+"""Build the backend runtime on the verified Blender tooling image.
 
 No credential is read and no cloud operation runs when this module is imported.
 Publishing is explicit and separate from building so integration checks can run first.
@@ -10,18 +10,22 @@ from pathlib import Path
 
 import modal
 
-BASE_IMAGE = "astra-blender:probe2-20260910"
-IMAGE_NAME = "astra-blender:v2"
+BASE_IMAGE_ID = "im-ELY2dohC6fxZVS7MuAnm3x"
+IMAGE_NAME = "astra-blender:v3"
 APP_NAME = "astra-interior-designer-blender"
 HERE = Path(__file__).resolve().parent
 
 
 def production_image():
     return (
-        modal.Image.from_name(BASE_IMAGE)
+        modal.Image.from_id(BASE_IMAGE_ID)
+        .pip_install("boto3==1.43.91")
         .add_local_file(HERE / "runtime.py", "/opt/astra/runtime.py", copy=True)
         .add_local_file(
             HERE / "bootstrap_blender.py", "/opt/astra/bootstrap_blender.py", copy=True
+        )
+        .add_local_file(
+            HERE / "workspace-AGENTS.md", "/opt/astra/backend-AGENTS.md", copy=True
         )
         .env(
             {
@@ -32,6 +36,7 @@ def production_image():
                 "DISPLAY": ":99",
                 "PYTHONUNBUFFERED": "1",
                 "AWS_EC2_METADATA_DISABLED": "true",
+                "ASTRA_STATE_DIR": "/run/astra-blender",
             }
         )
         .run_commands(
@@ -41,10 +46,14 @@ def production_image():
             "&& chmod 700 /run/astra /run/astra-blender "
             "&& chown 10001:10001 /run/astra-blender "
             "&& chmod 1777 /workspace && chmod 755 /workspace/inputs",
+            "cat /opt/astra/local/workspace-AGENTS.md /opt/astra/backend-AGENTS.md "
+            "> /workspace/AGENTS.md",
             "python -m py_compile /opt/astra/runtime.py "
             "/opt/astra/bootstrap_blender.py",
             "python /opt/astra/runtime.py --help",
             "blender --version && codex --version && codex exec-server --help",
+            "python -c \"import boto3; assert boto3.__version__ == '1.43.91'\"",
+            "test ! -e /opt/astra/fixtures && test ! -e /workspace/scene.blend",
         )
     )
 

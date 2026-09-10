@@ -1,15 +1,16 @@
 # Production sandbox runtime
 
-`image.py` extends the tested named software image
-`astra-blender:probe2-20260910`. All production runtime source is in this directory;
-the build does not read `/private/tmp/astra-image-probe/`. The base image already
-contains Blender 5.2.1, Blender MCP 1.9.1, Codex CLI 0.153.4, boto3 1.43.91, Xvfb,
-and the isolated Blender Python dependencies. No packages install at startup.
+`image.py` extends the tested tooling image
+`im-ELY2dohC6fxZVS7MuAnm3x` and publishes `astra-blender:v3`. The base contains
+Blender 5.2.1, Blender MCP 1.9.1, Codex CLI 0.153.4, Xvfb and the render/native-save
+helpers from `infra/modal_local/`. This layer adds boto3 1.43.91 and the existing
+S3/executor supervisor. No scene, texture or model is bundled. No packages install
+at startup.
 
 Build from the repository root with the environment containing Modal 1.5.5:
 
 ```sh
-.venv/bin/python infra/runtime/image.py
+.venv-modal/bin/python infra/runtime/image.py
 ```
 
 This requires access to the base image in Modal workspace `serhii-9119` and builds
@@ -24,7 +25,7 @@ app = modal.App.lookup("astra-interior-designer-blender", create_if_missing=True
 image = production_image().build(app)
 # Run the live session, storage, busy-health and reconnect checks using image.
 # After they pass, publish this exact built image:
-image.publish("astra-blender:v2")
+image.publish("astra-blender:v3")
 ```
 
 `python infra/runtime/image.py --publish` performs the build and publication in
@@ -70,15 +71,18 @@ python /opt/astra/runtime.py sync-inputs
 ```
 
 `start` downloads inputs and restores the last complete GLB, starts Xvfb and persistent
-Blender, executes a real scene query, then starts the executor. Blender imports
-the restored GLB into its scene and selects OptiX GPU devices with CPU rendering
-disabled. The original working `.blend` state is not persisted by this contract.
+Blender, executes a real scene query, then starts the executor. Blender reopens a
+local native master if present, otherwise imports the restored GLB or starts empty.
+The shared render helpers select OptiX GPU devices, GPU denoising, persistent data
+and eight Blender threads. Native `.blend` files can be saved/reopened locally;
+the S3 contract continues to persist the frontend's `scene.glb` export.
 The MCP add-on and scene probes use loopback. The supervisor control socket is
 local to `/run/astra`, with mode `0600`.
 
 `health` prints JSON and returns zero only after a successful Blender scene query
 with a running executor. The bootstrap records when a Blender command is executing.
-Health during that work returns `blender_state: "busy"`, `blender_busy: true`,
+Queued and active asynchronous renders also keep health busy after the MCP call
+returns. Health during that work returns `blender_state: "busy"`, `blender_busy: true`,
 `blender_ready: false`, and exit 2. An alive process that does not answer but has
 no command marker is `unresponsive`; an exited Blender process is `dead`. Failed
 health is never a restart instruction. The backend treats a nonzero probe as
