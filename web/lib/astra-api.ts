@@ -7,6 +7,8 @@ export type AstraMessage = {
   status: string;
   created_at: string;
   attachment_keys: string[];
+  turn_id?: string | null;
+  item_id?: string | null;
 };
 
 export type AstraSession = {
@@ -18,9 +20,16 @@ export type AstraSession = {
   next_cursor: string | null;
   scene_url: string | null;
   scene_url_expires_at: string | null;
+  render_url?: string | null;
+  render_sha256?: string | null;
 };
 
 export type AstraEvent = { event: string; id?: string; data: Record<string, unknown> };
+
+export class AstraHttpError extends Error {
+  status: number;
+  constructor(message: string, status: number) { super(message); this.status = status; }
+}
 
 export type AstraSessionReference = {
   session_id: string;
@@ -116,14 +125,23 @@ export class AstraApi {
     return AstraApi.createSession();
   }
 
-  async getSession() {
+  async getSession(signal?: AbortSignal) {
     const sessionId = await this.ensureSession();
-    const response = await fetch(`/api/astra/sessions/${encodeURIComponent(sessionId)}`, {
-      cache: "no-store",
-    });
-    if (!response.ok) throw new Error(await errorMessage(response));
+    let session: AstraSession | undefined;
+    let cursor: string | null = null;
+    do {
+      const query = new URLSearchParams({ limit: "100" });
+      if (cursor) query.set("cursor", cursor);
+      const response = await fetch(`/api/astra/sessions/${encodeURIComponent(sessionId)}?${query}`, {
+        cache: "no-store", signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000),
+      });
+      if (!response.ok) throw new Error(await errorMessage(response));
+      const page = await response.json() as AstraSession;
+      session = session ? { ...page, messages: [...session.messages, ...page.messages] } : page;
+      cursor = page.next_cursor;
+    } while (cursor);
     AstraApi.selectSession(sessionId);
-    return (await response.json()) as AstraSession;
+    return session;
   }
 
   async createUpload(filename: string, contentType: string) {
@@ -159,40 +177,59 @@ export class AstraApi {
     signal: AbortSignal,
   ): AsyncGenerator<AstraEvent> {
     const sessionId = await this.ensureSession();
-    const response = await fetch(`/api/astra/sessions/${encodeURIComponent(sessionId)}/message`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-      body: JSON.stringify({ message_id: messageId, text, attachment_keys: attachmentKeys }),
-      signal,
-    });
-    if (!response.ok || !response.body) throw new Error(await errorMessage(response));
+    const controller = new AbortController();
+    const abort = () => controller.abort(signal.reason);
+    signal.throwIfAborted();
+    signal.addEventListener("abort", abort, { once: true });
+    let timer = setTimeout(() => controller.abort(new Error("Stream stalled")), 45000);
+    const resetTimeout = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => controller.abort(new Error("Stream stalled")), 45000);
+    };
+    let reader: ReadableStreamDefaultReader<string> | undefined;
+    try {
+      const response = await fetch(`/api/astra/sessions/${encodeURIComponent(sessionId)}/message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+        body: JSON.stringify({ message_id: messageId, text, attachment_keys: attachmentKeys }),
+        signal: controller.signal,
+      });
+      if (!response.ok || !response.body) throw new AstraHttpError(await errorMessage(response), response.status);
 
-    const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
-    let buffer = "";
-    while (true) {
-      const { value, done } = await reader.read();
-      buffer += value ?? "";
-      const blocks = buffer.split(/\r?\n\r?\n/);
-      buffer = blocks.pop() ?? "";
-      for (const block of blocks) {
-        if (!block || block.startsWith(":")) continue;
-        let event = "message";
-        let id: string | undefined;
-        const data: string[] = [];
-        for (const line of block.split(/\r?\n/)) {
-          if (line.startsWith("event:")) event = line.slice(6).trim();
-          else if (line.startsWith("id:")) id = line.slice(3).trim();
-          else if (line.startsWith("data:")) data.push(line.slice(5).trimStart());
+      reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+      let buffer = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        resetTimeout();
+        buffer += value ?? "";
+        const blocks = buffer.split(/\r?\n\r?\n/);
+        buffer = blocks.pop() ?? "";
+        for (const block of blocks) {
+          if (!block) continue;
+          let event = "message";
+          let id: string | undefined;
+          const data: string[] = [];
+          for (const line of block.split(/\r?\n/)) {
+            if (line.startsWith("event:")) event = line.slice(6).trim();
+            else if (line.startsWith("id:")) id = line.slice(3).trim();
+            else if (line.startsWith("data:")) data.push(line.slice(5).trimStart());
+          }
+          if (data.length) {
+            const payload = JSON.parse(data.join("\n")) as Record<string, unknown>;
+            const resolvedEvent = event === "message" && typeof payload.type === "string"
+              ? payload.type
+              : event;
+            yield { event: resolvedEvent, id, data: payload };
+          }
         }
-        if (data.length) {
-          const payload = JSON.parse(data.join("\n")) as Record<string, unknown>;
-          const resolvedEvent = event === "message" && typeof payload.type === "string"
-            ? payload.type
-            : event;
-          yield { event: resolvedEvent, id, data: payload };
-        }
+        if (done) break;
       }
-      if (done) break;
+    } finally {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", abort);
+      await reader?.cancel().catch(() => {});
+      reader?.releaseLock();
+      controller.abort();
     }
   }
 }

@@ -4,7 +4,6 @@ import {
   AssistantRuntimeProvider,
   type ChatModelAdapter,
   type CompleteAttachment,
-  type ThreadAssistantMessagePart,
   type ThreadMessageLike,
   type ToolCallMessagePart,
   useLocalRuntime,
@@ -31,6 +30,8 @@ import {
 import { AstraAttachmentAdapter } from "@/lib/astra-attachment-adapter";
 import { PrototypeAttachmentAdapter } from "@/lib/prototype-attachment-adapter";
 import { renderViewMessage } from "@/lib/render-view";
+import { followTurn, TurnConnectionError } from "@/lib/follow-turn";
+import { toolPart, TurnTranscript } from "@/lib/turn-transcript";
 
 const backendEnabled = process.env.NEXT_PUBLIC_ASTRA_BACKEND_ENABLED === "true";
 
@@ -53,19 +54,6 @@ function progressFor(event: AstraEvent) {
   if (name.includes("scene_info") || name.includes("object_info")) return "Inspecting the current scene";
   if (name.includes("addon_status")) return "Checking Blender";
   return name.includes("mcp") ? "Working in Blender" : null;
-}
-
-function toolPart(item: Record<string, unknown>): ToolCallMessagePart | null {
-  if (item.type !== "mcp_call" || typeof item.id !== "string" || typeof item.name !== "string") return null;
-  const finished = item.status !== "in_progress";
-  return {
-    type: "tool-call",
-    toolCallId: item.id,
-    toolName: item.name,
-    args: {},
-    argsText: "{}",
-    ...(finished ? { result: { status: item.status }, isError: Boolean(item.error) } : {}),
-  };
 }
 
 function messageText(content: unknown) {
@@ -143,6 +131,7 @@ function SessionWorkspace({ initialSession, sessions, onSelectSession, onNewSess
   const sessionId = initialSession?.session_id ?? null;
   const [progress, setProgress] = useState<{ label: string } | null>(null);
   const [sceneUrl, setSceneUrl] = useState<string | null>(initialSession?.scene_url ?? null);
+  const [render, setRender] = useState<{ url: string; sha256: string | null } | null>(initialSession?.render_url ? { url: initialSession.render_url, sha256: initialSession.render_sha256 ?? null } : null);
   const api = useMemo(() => new AstraApi(sessionId), [sessionId]);
   const liveAttachments = useMemo(() => new AstraAttachmentAdapter(api), [api]);
 
@@ -166,88 +155,88 @@ function SessionWorkspace({ initialSession, sessions, onSelectSession, onNewSess
       const messageId = input.id.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 128);
       const attachmentKeys = liveAttachments.keysFor(input.attachmentIds);
       const text = input.text || "Use the attached files to update the room.";
-      let output = "";
-      const tools = new Map<string, ToolCallMessagePart>();
+      const transcript = new TurnTranscript();
       const preparationId = "astra-sandbox-preparation";
-      const content = (): ThreadAssistantMessagePart[] => [
-        ...tools.values(),
-        ...(output ? [{ type: "text" as const, text: output }] : []),
-      ];
+      let preparation: ToolCallMessagePart | undefined;
+      let updated: AstraSession | undefined;
+      let terminalStatus = "completed";
       setProgress({ label: "Starting the design session" });
 
       try {
-        for await (const event of api.sendMessage(messageId, text, attachmentKeys, abortSignal)) {
-          const eventName = event.event.startsWith("agent.")
-            ? event.event.slice("agent.".length)
-            : event.event;
-          if (event.event === "astra.error") {
-            throw new Error(typeof event.data.detail === "string" ? event.data.detail : "Generation failed.");
+        for await (const event of followTurn({
+          stream: () => api.sendMessage(messageId, text, attachmentKeys, abortSignal),
+          snapshot: () => api.getSession(abortSignal),
+          messageId, signal: abortSignal,
+        })) {
+          if (event.event === "astra.recovering") {
+            setProgress({ label: String(event.data.label) });
+            continue;
+          }
+          if (event.event === "astra.snapshot") {
+            updated = event.data.session as AstraSession;
+            transcript.restore(updated.messages, messageId);
+            if (preparation && preparation.result === undefined && updated.messages.some((item) => item.message_id === messageId)) {
+              preparation = { ...preparation, result: { status: "completed" } };
+              transcript.setTool(preparation);
+            }
+            yield { content: transcript.content() };
+            continue;
+          }
+          if (event.event === "astra.finished") {
+            terminalStatus = String(event.data.status);
+            continue;
           }
           if (event.event === "astra.progress") {
             const label = typeof event.data.label === "string"
               ? event.data.label
               : "Preparing the Blender sandbox";
             setProgress({ label });
-            tools.set(preparationId, {
+            preparation = {
               type: "tool-call",
               toolCallId: preparationId,
               toolName: "prepare_blender_sandbox",
               args: {},
               argsText: "{}",
-            });
-            yield { content: content() };
+            };
+            transcript.setTool(preparation);
+            yield { content: transcript.content() };
             continue;
           }
-          const preparation = tools.get(preparationId);
           if (preparation && preparation.result === undefined) {
-            tools.set(preparationId, {
+            preparation = {
               ...preparation,
               result: { status: "completed" },
-            });
+            };
+            transcript.setTool(preparation);
           }
           const label = progressFor(event);
           if (label) setProgress({ label });
-          const item = event.data.item;
-          if (
-            (eventName === "session.turn.item.added" || eventName === "session.turn.item.done")
-            && item && typeof item === "object"
-          ) {
-            const part = toolPart(item as Record<string, unknown>);
-            if (part) {
-              tools.set(part.toolCallId, part);
-              yield { content: content() };
-            }
-          }
-          if (eventName === "session.turn.output_text.delta" && typeof event.data.delta === "string") {
-            output += event.data.delta;
-            yield { content: content() };
-          } else if (eventName === "session.turn.output_text.done" && typeof event.data.text === "string") {
-            output = event.data.text;
-            yield { content: content() };
-          }
+          transcript.apply(event);
+          yield { content: transcript.content() };
         }
-        setProgress({ label: "Loading the generated scene" });
-        const updated = await api.getSession();
-        setSceneUrl(updated.scene_url);
-        onSessionUpdated(updated);
-        if (!output) {
-          output = "The room update is complete.";
-          yield { content: content() };
+        if (updated) {
+          setSceneUrl(updated.scene_url);
+          setRender(updated.render_url ? { url: updated.render_url, sha256: updated.render_sha256 ?? null } : null);
+          onSessionUpdated(updated);
+        }
+        if (terminalStatus !== "completed") {
+          transcript.note("turn-outcome", terminalStatus === "cancelled" ? "Generation was cancelled." : "The backend reported that this turn failed.");
+          yield { content: transcript.content(), status: { type: "incomplete", reason: terminalStatus === "cancelled" ? "cancelled" : "error" } };
+        } else {
+          if (!transcript.content().some((part) => part.type === "text")) transcript.note("turn-outcome", "The turn is complete.");
+          yield { content: transcript.content() };
         }
       } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        const preparation = tools.get(preparationId);
-        if (preparation && preparation.result === undefined) {
-          tools.set(preparationId, {
+        if (abortSignal.aborted) return;
+        if (!(error instanceof TurnConnectionError) && preparation && preparation.result === undefined) {
+          transcript.setTool({
             ...preparation,
             result: { status: "failed" },
             isError: true,
           });
         }
-        output = error instanceof Error
-          ? `I couldn't complete this generation: ${error.message}`
-          : "I couldn't complete this generation.";
-        yield { content: content(), status: { type: "incomplete", reason: "error" } };
+        transcript.note("turn-error", error instanceof Error ? error.message : "Unable to follow this turn. Refresh the session to check its status.");
+        yield { content: transcript.content(), status: { type: "incomplete", reason: "error" } };
       } finally {
         setProgress(null);
       }
@@ -278,7 +267,7 @@ function SessionWorkspace({ initialSession, sessions, onSelectSession, onNewSess
                 {backendEnabled && <Button onClick={onNewSession} size="icon-sm" variant="outline" className="shrink-0 rounded-full" aria-label="Start a new room"><Plus /></Button>}
                 <span className="rounded-full border border-[#d7cfc2] px-2 py-1 text-[11px] text-[#6f756f]">{backendEnabled ? "Connected" : "Demo"}</span>
               </header>
-              <ChatPanel onCancel={backendEnabled ? () => { void api.cancel(); } : undefined} />
+              <ChatPanel render={render} onCancel={backendEnabled ? () => { void api.cancel(); } : undefined} />
             </section>
           </ResizablePanel>
           <ResizableHandle withHandle className="bg-[#17221c]" />

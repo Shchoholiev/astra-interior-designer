@@ -8,7 +8,9 @@ At click time the UI captures the world position, world quaternion (x,y,z,w), ef
 
 Matrices are column-major. Let `V` be `viewerWorldFromGltfColumnMajor` and `C` be `gltfFromBlenderColumnMajor`. Reconstruct the camera world matrix `W` from its position and quaternion. For the original Blender scene, use `inverse(C) * inverse(V) * W`. The standard exporter maps Blender `(x,y,z)` to glTF `(x,z,-y)`. Both camera-local conventions use -Z forward and +Y up. An importer may already apply the basis conversion; do not apply it twice.
 
-Set a perspective camera with the supplied effective vertical FOV and aspect, square pixels, no lens shift or render border/crop. Preserve the existing geometry, materials, and lighting. Render separately from the editable master and GLB and return the image using the agent's existing image-delivery workflow. This UI change does not add or replace that delivery workflow.
+Set a perspective camera with the supplied effective vertical FOV and aspect, square pixels, no lens shift or render border/crop. Preserve the existing geometry, materials, and lighting. Render separately from the editable master and GLB and return the image using the agent's existing image-delivery workflow.
+
+After the turn finishes, the UI refreshes `GET /sessions/{id}` and shows optional `render_url` in a normal `<img>` with a full-resolution link. `render_sha256` keys the preview so a changed render is replaced. Reloaded sessions also restore this preview. The latest render stays visible during another generation. Both fields are optional for compatibility with backend deployments that do not yet expose them. The backend remains responsible for exporting/uploading the PNG and returning a browser-accessible signed URL; the UI does not upload a sandbox-local image itself.
 
 ## Scene identity
 

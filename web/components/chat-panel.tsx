@@ -10,6 +10,7 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 import { ArrowDown, ArrowUp, Check, ImagePlus, LoaderCircle, Square, TriangleAlert, X } from "lucide-react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { RENDER_VIEW_CONTEXT_MARKER } from "@/lib/render-view";
@@ -49,7 +50,7 @@ function ChatMessage() {
                 </details>
               </>;
             }
-            if (part.type === "text") return <MessagePartPrimitive.Text className="whitespace-pre-wrap text-[15px] leading-6" />;
+            if (part.type === "text") return <MessagePartPrimitive.Text className="mb-3 whitespace-pre-wrap text-[15px] leading-6 last:mb-0" />;
             if (part.type !== "tool-call") return null;
             const running = part.result === undefined && !part.isError;
             const labels: Record<string, string> = {
@@ -59,6 +60,7 @@ function ChatMessage() {
               execute_blender_code: "Updating the room in Blender",
               get_addon_status: "Checking Blender",
               prepare_blender_sandbox: "Connecting the Blender sandbox",
+              command_execution: "Running a sandbox command",
             };
             return (
               <div className="my-2 flex items-center gap-2 rounded-xl border border-[#d8d1c5] bg-[#f5f1e9] px-3 py-2 text-sm text-[#526057]">
@@ -74,12 +76,27 @@ function ChatMessage() {
   );
 }
 
-export function ChatPanel({ onCancel }: { onCancel?: () => void }) {
+function RenderPreview({ url }: { url: string }) {
+  const [failed, setFailed] = useState(false);
+  return <figure className="rounded-2xl border border-[#ddd6ca] bg-[#fffdf8] p-3 shadow-sm">
+    <figcaption className="mb-2 text-sm font-medium">Latest rendered view</figcaption>
+    <a href={url} target="_blank" rel="noopener noreferrer" className="block text-sm underline">
+      {/* Signed backend URLs should be loaded directly, without Next image optimization. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={url} alt="High-resolution render of your selected viewpoint" className="mb-2 h-auto w-full rounded-lg" onError={() => setFailed(true)} onLoad={() => setFailed(false)} />
+      Open full-resolution image
+    </a>
+    {failed && <p role="alert" className="mt-2 text-xs text-red-700">The image could not load. Refresh the session to request a fresh link.</p>}
+  </figure>;
+}
+
+export function ChatPanel({ onCancel, render }: { onCancel?: () => void; render?: { url: string; sha256: string | null } | null }) {
   return (
     <ThreadPrimitive.Root className="relative flex min-h-0 flex-1 flex-col bg-[#f5f1e9]">
       <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pt-5">
         <div className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-5">
           <ThreadPrimitive.Messages>{() => <ChatMessage />}</ThreadPrimitive.Messages>
+          {render && <RenderPreview key={render.sha256 ?? render.url} url={render.url} />}
         </div>
 
         <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-6 w-full max-w-xl bg-gradient-to-t from-[#f5f1e9] via-[#f5f1e9] to-transparent pb-4 pt-8">
