@@ -223,6 +223,7 @@ class SessionService:
         self.shutdown_timeout = shutdown_timeout
         self._live: dict[str, _LiveSession] = {}
         self._leases: dict[str, _Lease] = {}
+        self._startups: dict[str, asyncio.Task] = {}
         self._closed = False
 
     async def _owned(self, session_id: str, owner_id: str) -> SessionRecord:
@@ -251,6 +252,7 @@ class SessionService:
         session = _AgentSession(self.sdk, info)
         sandbox_id = None
         saved = False
+        launched = False
         try:
             environment_id = session.info.environment.id
             record = SessionRecord(
@@ -264,11 +266,13 @@ class SessionService:
             await self.store.create_session(record)
             saved = True
             await self._acquire(session.id)
-            live = await self._watch_session(record, session)
-            sandbox_id = await self._ready(record, live)
-            return await self.store.update_session(
-                session.id, status="idle", sandbox_id=sandbox_id
+            if self._closed:
+                raise SessionUnavailable("Backend is shutting down")
+            self._startups[session.id] = asyncio.create_task(
+                self._start_session(record, session)
             )
+            launched = True
+            return record
         except BaseException as exc:
             sandbox_id = sandbox_id or getattr(exc, "sandbox_id", None)
             if saved and sandbox_id is None:
@@ -315,10 +319,94 @@ class SessionService:
                     await self.store.delete_session(session.id)
             raise
         finally:
-            await self._release(session.id)
+            if not launched:
+                await self._release(session.id)
+
+    async def _start_session(self, record: SessionRecord, session: _AgentSession):
+        """Own the startup lease after the create request has returned."""
+        sandbox_id = None
+        try:
+            live = await self._watch_session(record, session)
+            sandbox_id = await self._ready(record, live)
+            self._check_lease(record.session_id)
+            await self.store.update_session(
+                record.session_id, status="idle", sandbox_id=sandbox_id
+            )
+        except BaseException as exc:
+            sandbox_id = sandbox_id or getattr(exc, "sandbox_id", None)
+            lease = self._leases.get(record.session_id)
+            owns_lease = lease is not None and not lease.lost
+            if sandbox_id is None and owns_lease:
+                with suppress(Exception):
+                    current = await self.store.get_session(record.session_id)
+                    sandbox_id = current.sandbox_id if current else None
+            await self._drop_live(record.session_id)
+            if sandbox_id:
+                try:
+                    await self.sandbox.stop(sandbox_id)
+                    sandbox_id = None
+                except Exception as cleanup_error:
+                    log.error(
+                        "Sandbox cleanup failed session=%s sandbox=%s error_type=%s",
+                        record.session_id,
+                        sandbox_id,
+                        type(cleanup_error).__name__,
+                    )
+            if owns_lease:
+                try:
+                    await self.store.update_session(
+                        record.session_id, status="failed", sandbox_id=sandbox_id
+                    )
+                except Exception as cleanup_error:
+                    log.error(
+                        "Startup metadata unavailable session=%s error_type=%s",
+                        record.session_id,
+                        type(cleanup_error).__name__,
+                    )
+            log.warning(
+                "Session startup failed session=%s error_type=%s",
+                record.session_id,
+                type(exc).__name__,
+            )
+        finally:
+            try:
+                await self._release(record.session_id)
+            finally:
+                self._startups.pop(record.session_id, None)
+
+    async def _await_startup(self, record: SessionRecord, owner_id: str) -> bool:
+        startup = self._startups.get(record.session_id)
+        if startup is None and record.status != "starting":
+            return False
+        try:
+            async with asyncio.timeout(self.readiness_timeout * 2):
+                if startup is not None:
+                    # A disconnected message request must not cancel shared startup.
+                    await asyncio.shield(startup)
+                else:
+                    while record.status == "starting":
+                        try:
+                            await self._acquire(record.session_id)
+                        except SessionConflict:
+                            pass
+                        else:
+                            # An expired creator lease permits the normal message
+                            # path to recover the session under a fresh lease.
+                            await self._release(record.session_id)
+                            return False
+                        await asyncio.sleep(self.poll_interval)
+                        record = await self._owned(record.session_id, owner_id)
+        except TimeoutError as exc:
+            raise SessionUnavailable("Session startup is not ready") from exc
+        record = await self._owned(record.session_id, owner_id)
+        if self._closed or record.status == "failed":
+            raise SessionUnavailable("Session startup failed")
+        return True
 
     async def get_session(self, session_id: str, *, owner_id: str) -> SessionRecord:
         record = await self._owned(session_id, owner_id)
+        if record.status == "starting" or session_id in self._startups:
+            return record
         live = self._live.get(session_id)
         if live is None or live.message is None:
             try:
@@ -355,13 +443,28 @@ class SessionService:
         self._check_retry(old, text, keys)
         if old and old.status in _TERMINAL_MESSAGES:
             return _empty_stream()
+        waited_for_startup = await self._await_startup(record, owner_id)
         live = self._live.get(session_id)
         if live and live.message is not None:
             if live.message.message_id != message_id:
                 raise SessionConflict("Another message is running in this session")
             return self._subscribe(live)
 
-        await self._acquire(session_id)
+        if waited_for_startup:
+            # A different worker may observe "idle" just before startup releases
+            # its lease. Wait for that handoff without creating another sandbox.
+            async with asyncio.timeout(self.readiness_timeout):
+                while True:
+                    try:
+                        await self._acquire(session_id)
+                        break
+                    except SessionConflict:
+                        current = await self._owned(session_id, owner_id)
+                        if current.status not in {"starting", "idle"}:
+                            raise
+                        await asyncio.sleep(self.poll_interval)
+        else:
+            await self._acquire(session_id)
         subscriber = None
         submit_attempted = False
         try:
@@ -724,7 +827,8 @@ class SessionService:
                 raise SessionUnavailable("Invalid retained-item pagination")
             after = next_after
         info = await session.retrieve()
-        await self.store.update_session(record.session_id, status=info.status)
+        if record.status not in {"starting", "failed"}:
+            await self.store.update_session(record.session_id, status=info.status)
         cursor = None
         while True:
             page = await self.store.list_messages(
@@ -929,6 +1033,17 @@ class SessionService:
         if self._closed:
             return
         self._closed = True
+        startups = list(self._startups.items())
+        for _, task in startups:
+            task.cancel()
+        await asyncio.gather(*(task for _, task in startups), return_exceptions=True)
+        for session_id, _ in startups:
+            # Cancellation before the coroutine's first step skips its finally.
+            with suppress(Exception):
+                record = await self.store.get_session(session_id)
+                if record and record.status == "starting":
+                    await self.store.update_session(session_id, status="failed")
+            self._startups.pop(session_id, None)
         try:
             async with asyncio.timeout(self.shutdown_timeout):
                 while any(live.message is not None for live in self._live.values()):
