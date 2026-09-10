@@ -5,14 +5,10 @@ WORKDIR /opt/astra
 
 COPY pyproject.toml uv.lock requirements.txt BACKEND.md ./
 COPY src/ ./src/
-COPY wheels/agent_api_sdk-*-py3-none-any.whl /tmp/astra-sdk/
 
-# The private SDK wheel is built locally from the commit in the unchanged lock.
-# No GitHub access or runtime credentials are needed during the image build.
 RUN python -m venv /opt/astra/.venv \
     && /opt/astra/.venv/bin/pip install --no-cache-dir -r requirements.txt \
-    && /opt/astra/.venv/bin/pip install --no-cache-dir --no-deps /tmp/astra-sdk/*.whl . \
-    && rm -rf /tmp/astra-sdk
+    && /opt/astra/.venv/bin/pip install --no-cache-dir --no-deps .
 
 ENV PYTHONUNBUFFERED=1
 EXPOSE 8000

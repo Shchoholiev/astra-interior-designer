@@ -165,6 +165,9 @@ function SessionWorkspace({ initialSession, sessions, onSelectSession, onNewSess
 
       try {
         for await (const event of api.sendMessage(messageId, text, attachmentKeys, abortSignal)) {
+          const eventName = event.event.startsWith("agent.")
+            ? event.event.slice("agent.".length)
+            : event.event;
           if (event.event === "astra.error") {
             throw new Error(typeof event.data.detail === "string" ? event.data.detail : "Generation failed.");
           }
@@ -194,7 +197,7 @@ function SessionWorkspace({ initialSession, sessions, onSelectSession, onNewSess
           if (label) setProgress({ label });
           const item = event.data.item;
           if (
-            (event.event === "session.turn.item.added" || event.event === "session.turn.item.done")
+            (eventName === "session.turn.item.added" || eventName === "session.turn.item.done")
             && item && typeof item === "object"
           ) {
             const part = toolPart(item as Record<string, unknown>);
@@ -203,10 +206,10 @@ function SessionWorkspace({ initialSession, sessions, onSelectSession, onNewSess
               yield { content: content() };
             }
           }
-          if (event.event === "session.turn.output_text.delta" && typeof event.data.delta === "string") {
+          if (eventName === "session.turn.output_text.delta" && typeof event.data.delta === "string") {
             output += event.data.delta;
             yield { content: content() };
-          } else if (event.event === "session.turn.output_text.done" && typeof event.data.text === "string") {
+          } else if (eventName === "session.turn.output_text.done" && typeof event.data.text === "string") {
             output = event.data.text;
             yield { content: content() };
           }
