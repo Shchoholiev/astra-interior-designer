@@ -1,6 +1,10 @@
 """The browser-facing session API."""
 
+import asyncio
 import hmac
+import json
+from collections.abc import AsyncIterator
+from contextlib import aclosing
 from datetime import datetime
 from typing import Annotated
 
@@ -153,15 +157,45 @@ async def send_message(
     services: ServicesDependency,
     owner_id: OwnerDependency,
 ) -> StreamingResponse:
-    events = await services.sessions.stream_message(
-        session_id,
-        owner_id=owner_id,
-        message_id=body.message_id,
-        text=body.text,
-        attachment_keys=body.attachment_keys,
-    )
+    async def stream() -> AsyncIterator[bytes]:
+        # Open the response before sandbox readiness work. Without an early
+        # chunk, CloudFront can reach its origin response timeout before Modal
+        # has connected the executor, so the browser never receives SSE.
+        yield b": connected\n\n"
+        preparing = asyncio.create_task(
+            services.sessions.stream_message(
+                session_id,
+                owner_id=owner_id,
+                message_id=body.message_id,
+                text=body.text,
+                attachment_keys=body.attachment_keys,
+            )
+        )
+        try:
+            while not preparing.done():
+                await asyncio.wait({preparing}, timeout=10)
+                if not preparing.done():
+                    yield b": preparing\n\n"
+            events = await preparing
+            async with aclosing(events):
+                async for event in events:
+                    yield event
+        except asyncio.CancelledError:
+            preparing.cancel()
+            raise
+        except Exception:
+            payload = json.dumps(
+                {"detail": "Unable to start or continue the generation"},
+                separators=(",", ":"),
+            )
+            yield f"event: astra.error\ndata: {payload}\n\n".encode()
+        finally:
+            if not preparing.done():
+                preparing.cancel()
+            await asyncio.gather(preparing, return_exceptions=True)
+
     return StreamingResponse(
-        events,
+        stream(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
