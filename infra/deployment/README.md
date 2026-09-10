@@ -56,7 +56,7 @@ aws iam put-user-policy --user-name astra-interior-designer-s3-signer \
 
 ## Runtime and verification
 
-Build the Blender sandbox image with `.venv-modal/bin/python infra/runtime/image.py`; add `--publish` after validation to publish `astra-blender:v5`. The deployment template and backend defaults select this version, which adds PNG delivery and upload receipts to the S3/executor runtime with the Interior Design plugin. New agent sessions register the baked plugin directory as a capability directory. Existing sandboxes need replacement before they can publish rendered images.
+Build the Blender sandbox image with `.venv-modal/bin/python infra/runtime/image.py`; add `--publish` after validation to publish `astra-blender:v6`. The deployment template and backend defaults select this version, which includes PNG delivery, upload receipts, and the seven-skill Interior Design plugin with viewer-camera exports. New agent sessions register the baked plugin directory as a capability directory. Existing sandboxes need replacement to pick up the new plugin.
 The Fargate application creates Modal sandboxes from that image and uses the `astra-openai-executor` Modal secret for their executor credential.
 New sandboxes download their session's S3 inputs in the background. The supervisor owns `/workspace/inputs`; Blender and the executor run as `astra-agent` and can only read those files. Attachment delivery is confirmed before submitting a message. Existing v1 sandboxes retain their original background polling and writable inputs until replaced; they do not support the pre-message sync command.
 `GET /health` is unauthenticated and returns `{"status":"ok"}`; `/sessions` routes require the application Bearer token.
