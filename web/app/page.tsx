@@ -3,6 +3,8 @@
 import {
   AssistantRuntimeProvider,
   type ChatModelAdapter,
+  type ThreadAssistantMessagePart,
+  type ToolCallMessagePart,
   useLocalRuntime,
 } from "@assistant-ui/react";
 import { Sparkles } from "lucide-react";
@@ -40,6 +42,19 @@ function progressFor(event: AstraEvent) {
   if (name.includes("scene_info") || name.includes("object_info")) return "Inspecting the current scene";
   if (name.includes("addon_status")) return "Checking Blender";
   return name.includes("mcp") ? "Working in Blender" : null;
+}
+
+function toolPart(item: Record<string, unknown>): ToolCallMessagePart | null {
+  if (item.type !== "mcp_call" || typeof item.id !== "string" || typeof item.name !== "string") return null;
+  const finished = item.status !== "in_progress";
+  return {
+    type: "tool-call",
+    toolCallId: item.id,
+    toolName: item.name,
+    args: {},
+    argsText: "{}",
+    ...(finished ? { result: { status: item.status }, isError: Boolean(item.error) } : {}),
+  };
 }
 
 export default function Home() {
@@ -87,31 +102,57 @@ export default function Home() {
       const attachmentKeys = liveAttachments.keysFor(input.attachmentIds);
       const text = input.text || "Use the attached files to update the room.";
       let output = "";
+      const tools = new Map<string, ToolCallMessagePart>();
+      const content = (): ThreadAssistantMessagePart[] => [
+        ...tools.values(),
+        ...(output ? [{ type: "text" as const, text: output }] : []),
+      ];
       const cancel = () => { void api.cancel(); };
       abortSignal.addEventListener("abort", cancel, { once: true });
       setProgress({ label: "Starting the design session" });
 
       try {
         for await (const event of api.sendMessage(messageId, text, attachmentKeys, abortSignal)) {
+          if (event.event === "astra.error") {
+            throw new Error(typeof event.data.detail === "string" ? event.data.detail : "Generation failed.");
+          }
           const label = progressFor(event);
           if (label) setProgress({ label });
+          const item = event.data.item;
+          if (
+            (event.event === "session.turn.item.added" || event.event === "session.turn.item.done")
+            && item && typeof item === "object"
+          ) {
+            const part = toolPart(item as Record<string, unknown>);
+            if (part) {
+              tools.set(part.toolCallId, part);
+              yield { content: content() };
+            }
+          }
           if (event.event === "session.turn.output_text.delta" && typeof event.data.delta === "string") {
             output += event.data.delta;
-            yield { content: [{ type: "text", text: output }] };
+            yield { content: content() };
           } else if (event.event === "session.turn.output_text.done" && typeof event.data.text === "string") {
             output = event.data.text;
-            yield { content: [{ type: "text", text: output }] };
+            yield { content: content() };
           }
         }
         setProgress({ label: "Loading the generated scene" });
         const session = await api.getSession();
         setSceneUrl(session.scene_url);
         if (!output) {
-          yield { content: [{ type: "text", text: "The room update is complete." }] };
+          output = "The room update is complete.";
+          yield { content: content() };
         }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        throw error;
+        output = error instanceof Error
+          ? `I couldn't complete this generation: ${error.message}`
+          : "I couldn't complete this generation.";
+        yield {
+          content: content(),
+          status: { type: "incomplete", reason: "error" },
+        };
       } finally {
         abortSignal.removeEventListener("abort", cancel);
         setProgress(null);

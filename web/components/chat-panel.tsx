@@ -9,7 +9,7 @@ import {
   ThreadPrimitive,
   useAuiState,
 } from "@assistant-ui/react";
-import { ArrowDown, ArrowUp, ImagePlus, Square, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, ImagePlus, LoaderCircle, Square, TriangleAlert, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -37,7 +37,25 @@ function ChatMessage() {
       <div className={role === "user" ? "rounded-2xl rounded-br-md bg-[#193d2e] px-4 py-3 text-[#faf7f0]" : "rounded-2xl rounded-tl-md border border-[#ddd6ca] bg-[#fffdf8] px-4 py-3 text-[#34423a] shadow-sm"}>
         {role === "assistant" && <p className="mb-1 text-[10px] font-bold uppercase tracking-[.12em] text-[#788078]">Astra</p>}
         <MessagePrimitive.Parts>
-          {({ part }) => part.type === "text" ? <MessagePartPrimitive.Text className="whitespace-pre-wrap text-[15px] leading-6" /> : null}
+          {({ part }) => {
+            if (part.type === "text") return <MessagePartPrimitive.Text className="whitespace-pre-wrap text-[15px] leading-6" />;
+            if (part.type !== "tool-call") return null;
+            const running = part.result === undefined && !part.isError;
+            const labels: Record<string, string> = {
+              get_scene_info: "Inspecting the Blender scene",
+              get_object_info: "Inspecting scene objects",
+              get_viewport_screenshot: "Reviewing the room",
+              execute_blender_code: "Updating the room in Blender",
+              get_addon_status: "Checking Blender",
+            };
+            return (
+              <div className="my-2 flex items-center gap-2 rounded-xl border border-[#d8d1c5] bg-[#f5f1e9] px-3 py-2 text-sm text-[#526057]">
+                {running ? <LoaderCircle className="size-4 animate-spin text-[#1d513a]" /> : part.isError ? <TriangleAlert className="size-4 text-red-700" /> : <Check className="size-4 text-emerald-700" />}
+                <span>{labels[part.toolName] ?? part.toolName.replaceAll("_", " ")}</span>
+                <span className="ml-auto text-[10px] font-bold uppercase tracking-wide text-[#899087]">{running ? "Running" : part.isError ? "Failed" : "Done"}</span>
+              </div>
+            );
+          }}
         </MessagePrimitive.Parts>
       </div>
     </MessagePrimitive.Root>
