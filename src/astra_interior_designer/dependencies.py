@@ -129,6 +129,7 @@ async def build_services(settings: Settings) -> Services:
                                 "s3:prefix": [
                                     f"{storage_prefix}inputs/",
                                     f"{storage_prefix}inputs/*",
+                                    f"{storage_prefix}scene.glb",
                                 ]
                             }
                         },

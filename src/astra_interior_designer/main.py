@@ -56,6 +56,10 @@ def create_app(
     )
     application.include_router(router)
 
+    @application.get("/health", include_in_schema=False)
+    async def health() -> dict[str, str]:
+        return {"status": "ok"}
+
     async def not_found(_request: Request, _error: Exception):
         return JSONResponse(
             status_code=404, content={"detail": "Session or file not found"}

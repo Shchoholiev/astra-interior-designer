@@ -109,14 +109,6 @@ class SandboxService:
             )
 
         image = modal.Image.from_name(self.image_name)
-        try:
-            await image.hydrate.aio()
-        except NotFoundError as exc:
-            raise SandboxUnavailable(
-                f"Publish the prepared Modal image {self.image_name} "
-                "before starting sessions"
-            ) from exc
-
         credentials = await self.s3_credentials(bucket_name, storage_prefix)
         secret = {
             "AWS_ACCESS_KEY_ID": credentials.access_key_id,
@@ -166,6 +158,10 @@ class SandboxService:
         cancelled = False
         try:
             sandbox = await asyncio.shield(create)
+        except NotFoundError as exc:
+            raise SandboxUnavailable(
+                "The configured Modal sandbox image or executor secret is unavailable"
+            ) from exc
         except asyncio.CancelledError:
             # Finish obtaining the provider ID so cancellation cannot orphan a GPU.
             sandbox = await create
@@ -175,7 +171,7 @@ class SandboxService:
                 raise asyncio.CancelledError
             await self._wait_ready(sandbox)
             return SandboxHandle(sandbox_id=sandbox.object_id)
-        except BaseException:
+        except BaseException as exc:
             try:
                 await asyncio.shield(sandbox.terminate.aio(wait=True))
             except Exception as cleanup_error:
@@ -183,6 +179,10 @@ class SandboxService:
                     "Sandbox startup failed and compute cleanup must be retried",
                     sandbox.object_id,
                 ) from cleanup_error
+            if isinstance(exc, Exception) and not isinstance(exc, SandboxStartupError):
+                raise SandboxStartupError(
+                    "Sandbox runtime failed during startup", sandbox.object_id
+                ) from exc
             raise
         finally:
             await sandbox.detach.aio()

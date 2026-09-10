@@ -1,0 +1,105 @@
+# Production sandbox runtime
+
+`image.py` extends the tested named software image
+`astra-blender:probe2-20260910`. All production runtime source is in this directory;
+the build does not read `/private/tmp/astra-image-probe/`. The base image already
+contains Blender 5.2.1, Blender MCP 1.9.1, Codex CLI 0.153.4, boto3 1.43.91, Xvfb,
+and the isolated Blender Python dependencies. No packages install at startup.
+
+Build from the repository root with the environment containing Modal 1.5.5:
+
+```sh
+.venv/bin/python infra/runtime/image.py
+```
+
+This requires access to the base image in Modal workspace `serhii-9119` and builds
+the candidate without naming it. It does not launch a sandbox. For integration
+validation, keep the built object and pass it to `modal.Sandbox.create`:
+
+```python
+import modal
+from infra.runtime.image import production_image
+
+app = modal.App.lookup("astra-interior-designer-blender", create_if_missing=True)
+image = production_image().build(app)
+# Run the live session, storage, busy-health and reconnect checks using image.
+# After they pass, publish this exact built image:
+image.publish("astra-blender:v1")
+```
+
+`python infra/runtime/image.py --publish` performs the build and publication in
+one command. Use it only after the same source has passed integration validation.
+Keep future runtime changes under a new named version.
+
+Each sandbox needs these environment variables:
+
+| Variable | Source |
+|---|---|
+| `SESSION_ID` | OpenAI session identifier. |
+| `ENVIRONMENT_ID` | That session's self-hosted environment identifier. |
+| `AGENTS_REMOTE_URL` | The Agents API HTTPS remote endpoint. |
+| `CODEX_API_KEY` | Restricted executor credential from a runtime secret. |
+| `S3_BUCKET`, `S3_PREFIX` | Session bucket and exactly `sandboxes/{SESSION_ID}/`. |
+| `AWS_REGION` | Bucket region. |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` | Temporary credentials restricted to this session's storage. |
+
+The backend application key and database credentials must stay outside the
+sandbox. The runtime passes the executor key to `codex exec-server` through its
+environment. Blender and Xvfb do not receive the executor or AWS credentials.
+S3 uses explicit temporary credentials; no role or local profile fallback occurs.
+Required S3 permissions are listing this session's `inputs/` and exact `scene.glb`
+prefixes, reading its inputs and `scene.glb`, and writing its `scene.glb`. Restore
+uses `ListObjectsV2` with the exact scene prefix and requires an exact key match;
+an empty listing means there is no persisted scene. It does not rely on `HEAD`
+returning 404 under a prefix-constrained policy. The backend caps sandbox
+lifetime before these credentials expire. There are no S3 filesystem mounts.
+
+The backend command contract is:
+
+```text
+python /opt/astra/runtime.py start
+python /opt/astra/runtime.py health
+python /opt/astra/runtime.py reconnect-executor
+```
+
+`start` restores inputs and the last complete GLB, starts Xvfb and persistent
+Blender, executes a real scene query, then starts the executor. Blender imports
+the restored GLB into its scene and selects OptiX GPU devices with CPU rendering
+disabled. The original working `.blend` state is not persisted by this contract.
+The MCP add-on and scene probes use loopback. The supervisor control socket is
+local to `/run/astra`, with mode `0600`.
+
+`health` prints JSON and returns zero only after a successful Blender scene query
+with a running executor. The bootstrap records when a Blender command is executing.
+Health during that work returns `blender_state: "busy"`, `blender_busy: true`,
+`blender_ready: false`, and exit 2. An alive process that does not answer but has
+no command marker is `unresponsive`; an exited Blender process is `dead`. Failed
+health is never a restart instruction. The backend treats a nonzero probe as
+unknown and retains the workspace. An unexpected essential process exit causes
+the supervisor to clean up its process groups and exit.
+
+`reconnect-executor` serializes requests within the supervisor and replaces only
+the executor process group. It preserves Blender, Xvfb, the environment ID, and
+local files. Its success means the replacement process launched; the backend
+must separately observe the OpenAI environment connection before submitting work.
+
+Every two seconds, storage synchronization downloads new or changed inputs using
+conditional S3 reads and atomic local replacements. It publishes `scene.glb` only
+after two unchanged file observations and successful validation of a complete,
+self-contained GLB. Uploads read a separate stable snapshot and set
+`Content-Type: model/gltf-binary`. Identical scene contents are not uploaded again.
+Storage failures are retried and exposed as `storage_error` in health and provider
+logs. Graceful shutdown attempts one final upload; hard termination cannot promise
+an upload that has not already completed.
+
+Local verification:
+
+```sh
+.venv/bin/python -m unittest discover -s tests -p test_runtime.py -v
+.venv/bin/ruff check infra/runtime tests/test_runtime.py
+```
+
+The local suite uses simulated S3 and Blender boundaries, real local processes,
+and local sockets. It verifies storage safety and supervisor behavior without
+credentials or GPU compute. Live Agents API attachment and S3 transfer checks
+remain required before production publication.
