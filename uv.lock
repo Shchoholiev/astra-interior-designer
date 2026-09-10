@@ -64,7 +64,6 @@ source = { editable = "." }
 dependencies = [
     { name = "agent-api-sdk" },
     { name = "fastapi", extra = ["standard"] },
-    { name = "pydantic-settings" },
 ]
 
 [package.dev-dependencies]
@@ -76,7 +75,6 @@ dev = [
 requires-dist = [
     { name = "agent-api-sdk", git = "https://github.com/OpenAI-Early-Access/agents-api-python-preview.git" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.115,<1.0" },
-    { name = "pydantic-settings", specifier = ">=2.6,<3.0" },
 ]
 
 [package.metadata.requires-dev]
