@@ -1,11 +1,14 @@
 # Production sandbox runtime
 
 `image.py` extends the tested tooling image
-`im-ELY2dohC6fxZVS7MuAnm3x` and publishes `astra-blender:v3`. The base contains
+`im-ELY2dohC6fxZVS7MuAnm3x` and publishes `astra-blender:v4`. The base contains
 Blender 5.2.1, Blender MCP 1.9.1, Codex CLI 0.153.4, Xvfb and the render/native-save
 helpers from `infra/modal_local/`. This layer adds boto3 1.43.91 and the existing
-S3/executor supervisor. No scene, texture or model is bundled. No packages install
-at startup.
+S3/executor supervisor, plus the complete `plugins/interior-desing` plugin at
+`/opt/astra/plugins/interior-desing`. New agent sessions expose that directory
+through `environment.capability_directories`; the manifest, six skills, and their
+references are baked into the image with `copy=True`. Plugin updates require a
+new image build. No scene, texture or model is bundled. No packages install at startup.
 
 Build from the repository root with the environment containing Modal 1.5.5:
 
@@ -25,7 +28,7 @@ app = modal.App.lookup("astra-interior-designer-blender", create_if_missing=True
 image = production_image().build(app)
 # Run the live session, storage, busy-health and reconnect checks using image.
 # After they pass, publish this exact built image:
-image.publish("astra-blender:v3")
+image.publish("astra-blender:v4")
 ```
 
 `python infra/runtime/image.py --publish` performs the build and publication in

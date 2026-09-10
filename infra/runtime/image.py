@@ -11,9 +11,10 @@ from pathlib import Path
 import modal
 
 BASE_IMAGE_ID = "im-ELY2dohC6fxZVS7MuAnm3x"
-IMAGE_NAME = "astra-blender:v3"
+IMAGE_NAME = "astra-blender:v4"
 APP_NAME = "astra-interior-designer-blender"
 HERE = Path(__file__).resolve().parent
+PLUGIN = HERE.parents[1] / "plugins" / "interior-desing"
 
 
 def production_image():
@@ -27,6 +28,7 @@ def production_image():
         .add_local_file(
             HERE / "workspace-AGENTS.md", "/opt/astra/backend-AGENTS.md", copy=True
         )
+        .add_local_dir(PLUGIN, "/opt/astra/plugins/interior-desing", copy=True)
         .env(
             {
                 "BLENDER_USER_SCRIPTS": "/opt/astra/blender-scripts",
