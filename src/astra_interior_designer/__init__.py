@@ -1,0 +1,1 @@
+"""Astra Interior Designer backend."""
