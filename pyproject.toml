@@ -9,10 +9,10 @@ description = "FastAPI backend for Astra Interior Designer"
 readme = "BACKEND.md"
 requires-python = ">=3.12"
 dependencies = [
-    "agent-api-sdk",
     "boto3[crt]>=1.42,<2",
     "fastapi[standard]>=0.115,<1.0",
     "modal==1.5.5",
+    "openai>=3.13,<4",
     "pydantic-settings>=2,<3",
 ]
 
@@ -31,6 +31,3 @@ src = ["src"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
-
-[tool.uv.sources]
-agent-api-sdk = { git = "https://github.com/OpenAI-Early-Access/agents-api-python-preview.git" }

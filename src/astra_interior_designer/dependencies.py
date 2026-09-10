@@ -7,10 +7,9 @@ from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
 
 import boto3
-import httpx
-from agent_api_sdk import AgentAPISDK
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
+from openai import AsyncOpenAI
 
 from astra_interior_designer.config import ConfigError, Settings
 from astra_interior_designer.services.sandbox import SandboxCredentials, SandboxService
@@ -180,17 +179,11 @@ async def build_services(settings: Settings) -> Services:
             timeout_seconds=settings.sandbox_timeout_seconds,
             readiness_timeout_seconds=settings.readiness_timeout_seconds,
         )
-        agents_http = httpx.AsyncClient(
-            timeout=600.0,
-            headers={"OpenAI-Beta": "agents=v0"},
-        )
-        cleanup.push_async_callback(agents_http.aclose)
-        sdk = AgentAPISDK(
+        sdk = AsyncOpenAI(
             api_key=settings.openai_api_key.get_secret_value(),
-            base_url="https://api.openai.com/v1/agents",
-            http_client=agents_http,
+            timeout=600.0,
         )
-        cleanup.push_async_callback(sdk.aclose)
+        cleanup.push_async_callback(sdk.close)
         sessions = SessionService(
             storage,
             files,

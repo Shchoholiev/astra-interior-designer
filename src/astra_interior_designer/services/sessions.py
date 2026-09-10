@@ -1,4 +1,4 @@
-"""Session lifecycle and durable delivery around the pinned Agents API SDK."""
+"""Session lifecycle and durable delivery around the OpenAI Agents API."""
 
 from __future__ import annotations
 
@@ -6,14 +6,13 @@ import asyncio
 import json
 import logging
 from collections.abc import AsyncIterator
-from contextlib import aclosing, suppress
+from contextlib import suppress
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from agent_api_sdk import AgentAPIError, AgentAPISDK
-from agent_api_sdk._session import AsyncAgentSession
-from agent_api_sdk._types import McpToolParam, SessionEvent
+from openai import APIStatusError, AsyncOpenAI
+from openai.types.beta import AgentSession, AgentSessionEvent, AgentToolParam
 
 from astra_interior_designer.services.storage import (
     MessageRecord,
@@ -24,12 +23,12 @@ from astra_interior_designer.services.storage import (
 log = logging.getLogger(__name__)
 _TERMINAL_MESSAGES = {"completed", "failed", "cancelled"}
 _TURN_END = {
-    "session.turn.completed": "completed",
-    "session.turn.failed": "failed",
-    "session.turn.cancelled": "cancelled",
+    "agent.session.turn.completed": "completed",
+    "agent.session.turn.failed": "failed",
+    "agent.session.turn.cancelled": "cancelled",
 }
 
-_BLENDER_TOOL: McpToolParam = {
+_BLENDER_TOOL: AgentToolParam = {
     "type": "mcp",
     "server_label": "blender",
     "connection_origin": "environment",
@@ -49,6 +48,59 @@ _BLENDER_TOOL: McpToolParam = {
         "get_addon_status",
     ],
 }
+
+
+class _AgentSession:
+    """Bind the generated session resource methods to one session ID."""
+
+    def __init__(self, client: AsyncOpenAI, info: AgentSession):
+        self.client = client
+        self.info = info
+        self.id = info.id
+
+    async def retrieve(self) -> AgentSession:
+        self.info = await self.client.beta.agents.sessions.retrieve(self.id)
+        return self.info
+
+    async def delete(self):
+        return await self.client.beta.agents.sessions.delete(self.id)
+
+    async def list_items(self, **params):
+        return await self.client.beta.agents.sessions.items.list(self.id, **params)
+
+    async def list_turns(self, **params):
+        return await self.client.beta.agents.sessions.turns.list(self.id, **params)
+
+    async def retrieve_turn(self, turn_id: str):
+        return await self.client.beta.agents.sessions.turns.retrieve(
+            turn_id, session_id=self.id
+        )
+
+    async def send_input(self, text: str, *, idempotency_key: str | None = None):
+        await self.client.beta.agents.sessions.events.create(
+            self.id,
+            events=[
+                {
+                    "type": "agent.session.input.message",
+                    "input": [
+                        {
+                            "role": "user",
+                            "content": [{"type": "input_text", "text": text}],
+                        }
+                    ],
+                }
+            ],
+            **(
+                {"idempotency_key": idempotency_key}
+                if idempotency_key is not None
+                else {}
+            ),
+        )
+
+    async def send_cancel(self):
+        await self.client.beta.agents.sessions.events.create(
+            self.id, events=[{"type": "agent.session.input.cancel"}]
+        )
 
 
 class SessionNotFound(Exception):
@@ -77,7 +129,7 @@ class _Lease:
 
 @dataclass
 class _LiveSession:
-    session: AsyncAgentSession
+    session: _AgentSession
     opened: asyncio.Event = field(default_factory=asyncio.Event)
     connected: asyncio.Event = field(default_factory=asyncio.Event)
     subscribers: set[asyncio.Queue] = field(default_factory=set)
@@ -121,14 +173,11 @@ class _Subscription:
         self.live.subscribers.discard(self.queue)
 
 
-def encode_sse(event: SessionEvent) -> bytes:
-    """Preserve the SDK's native event name, SSE ID, and original JSON payload."""
-    lines = []
-    if event.event_name is not None:
-        lines.append(f"event: {event.event_name}")
-    if event.sse_event_id is not None:
-        lines.append(f"id: {event.sse_event_id}")
-    lines.append("data: " + json.dumps(event.data, separators=(",", ":")))
+def encode_sse(event: AgentSessionEvent) -> bytes:
+    """Forward the generated SDK event as SSE without altering its payload."""
+    payload = event.model_dump(mode="json", exclude_none=True)
+    lines = [f"event: {event.type}", f"id: {event.event_id}"]
+    lines.append("data: " + json.dumps(payload, separators=(",", ":")))
     return ("\n".join(lines) + "\n\n").encode()
 
 
@@ -143,7 +192,7 @@ class SessionService:
         store,
         files,
         sandbox,
-        sdk: AgentAPISDK,
+        sdk: AsyncOpenAI,
         *,
         bucket_name: str,
         model: str = "gpt-6-astra",
@@ -182,12 +231,16 @@ class SessionService:
             raise SessionNotFound("Session not found")
         return record
 
+    async def _retrieve_session(self, session_id: str) -> _AgentSession:
+        info = await self.sdk.beta.agents.sessions.retrieve(session_id)
+        return _AgentSession(self.sdk, info)
+
     async def create_session(
         self, *, owner_id: str, title: str | None = None
     ) -> SessionRecord:
         if self._closed:
             raise SessionUnavailable("Backend is shutting down")
-        session = await self.sdk.sessions.create(
+        info = await self.sdk.beta.agents.sessions.create(
             agent={
                 "model": self.model,
                 "instructions": self.instructions,
@@ -195,15 +248,16 @@ class SessionService:
             },
             environment={"type": "self_hosted", "workspace_directory": "/workspace"},
         )
+        session = _AgentSession(self.sdk, info)
         sandbox_id = None
         saved = False
         try:
-            environment_id = session.info.environment.environment_id
+            environment_id = session.info.environment.id
             record = SessionRecord(
                 session_id=session.id,
                 environment_id=environment_id,
                 storage_prefix=f"sandboxes/{session.id}/",
-                remote_url=session.info.environment.remote_url,
+                remote_url=getattr(session.info.environment, "remote_url", None),
                 owner_id=owner_id,
                 title=title,
             )
@@ -273,9 +327,7 @@ class SessionService:
                 return record
             try:
                 session = (
-                    live.session
-                    if live
-                    else await self.sdk.sessions.retrieve(session_id)
+                    live.session if live else await self._retrieve_session(session_id)
                 )
                 await self._reconcile(record, session)
             finally:
@@ -320,9 +372,7 @@ class SessionService:
             if old and old.status in _TERMINAL_MESSAGES:
                 await self._release(session_id)
                 return _empty_stream()
-            session = (
-                live.session if live else await self.sdk.sessions.retrieve(session_id)
-            )
+            session = live.session if live else await self._retrieve_session(session_id)
             info = await session.retrieve()
             await self._reconcile(record, session)
             old = await self.store.find_message(session_id, message_id)
@@ -403,14 +453,14 @@ class SessionService:
             if subscriber:
                 await subscriber.aclose()
             rejected = (
-                isinstance(exc, AgentAPIError)
-                and 400 <= (exc.status_code or 0) < 500
+                isinstance(exc, APIStatusError)
+                and 400 <= exc.status_code < 500
                 and exc.status_code not in {408, 409, 429}
             )
             if live and live.message is not None and submit_attempted and not rejected:
                 # A lost response (or disconnected caller) does not tell us whether
                 # submission succeeded. Keep persisting with the same message ID.
-                if isinstance(exc, AgentAPIError):
+                if isinstance(exc, APIStatusError):
                     live.retry_delay = 1
                 live.recovery = asyncio.create_task(
                     self._recover_while_active(record, live)
@@ -445,11 +495,11 @@ class SessionService:
 
     async def cancel(self, session_id: str, *, owner_id: str) -> None:
         await self._owned(session_id, owner_id)
-        session = await self.sdk.sessions.retrieve(session_id)
+        session = await self._retrieve_session(session_id)
         await session.send_cancel()
 
     async def _watch_session(
-        self, record: SessionRecord, session: AsyncAgentSession
+        self, record: SessionRecord, session: _AgentSession
     ) -> _LiveSession:
         live = self._live.get(record.session_id)
         if live is None or live.task is None or live.task.done():
@@ -465,14 +515,12 @@ class SessionService:
         return live
 
     async def _watch(self, record: SessionRecord, live: _LiveSession) -> None:
-        async def opened():
-            live.opened.set()
-
         try:
-            # The pinned preview SDK only exposes the HTTP-open callback here.
-            # It is necessary to subscribe before starting/reconnecting the executor.
-            events = self.sdk._client.stream_events(record.session_id, on_open=opened)
-            async with aclosing(events):
+            events = await self.sdk.beta.agents.sessions.events.stream(
+                record.session_id
+            )
+            live.opened.set()
+            async with events:
                 async for event in events:
                     await self._event(record, live, event)
             raise SessionUnavailable("Upstream event stream ended")
@@ -503,7 +551,9 @@ class SessionService:
                             self.bucket_name,
                             record.storage_prefix,
                             record.remote_url
-                            or live.session.info.environment.remote_url,
+                            or getattr(
+                                live.session.info.environment, "remote_url", None
+                            ),
                         )
                     except Exception as exc:
                         started_id = getattr(exc, "sandbox_id", None)
@@ -546,44 +596,46 @@ class SessionService:
             ) from exc
 
     async def _event(
-        self, record: SessionRecord, live: _LiveSession, event: SessionEvent
+        self, record: SessionRecord, live: _LiveSession, event: AgentSessionEvent
     ):
         if record.session_id in self._leases:
             self._check_lease(record.session_id)
-        if event.type == "session.environment.connected":
+        if event.type == "agent.session.environment.connected":
             live.connected.set()
         elif event.type in {
-            "session.environment.disconnected",
-            "session.environment.failed",
+            "agent.session.environment.disconnected",
+            "agent.session.environment.failed",
         }:
             live.connected.clear()
-        turn = event.data.get("turn")
+        data = event.model_dump(mode="json", exclude_none=True)
+        turn = data.get("turn")
         subagent_id = turn.get("subagent_id") if isinstance(turn, dict) else None
-        subagent_id = subagent_id or event.data.get("subagent_id")
-        if subagent_id and event.turn_id:
-            live.child_turns.add(event.turn_id)
-        is_child = bool(subagent_id) or event.turn_id in live.child_turns
+        subagent_id = subagent_id or data.get("subagent_id")
+        turn_id = getattr(event, "turn_id", None)
+        if subagent_id and turn_id:
+            live.child_turns.add(turn_id)
+        is_child = bool(subagent_id) or turn_id in live.child_turns
         if live.message is not None:
-            if event.type == "session.turn.item.done" and event.item and not is_child:
-                await self._save_item(record, event.item, turn_id=event.turn_id)
+            if event.type == "agent.session.turn.item.done" and not is_child:
+                await self._save_item(record, data["item"], turn_id=turn_id)
             if (
-                event.type == "session.turn.created"
+                event.type == "agent.session.turn.created"
                 and live.message.turn_id is None
                 and not is_child
             ):
                 live.message = await self.store.upsert_message(
-                    replace(live.message, turn_id=event.turn_id, status="submitted")
+                    replace(live.message, turn_id=turn_id, status="submitted")
                 )
-            if event.type in _TURN_END and event.turn_id == live.message.turn_id:
+            if event.type in _TURN_END and turn_id == live.message.turn_id:
                 live.terminal = _TURN_END[event.type]
-            if event.type == "session.failed" and not is_child:
+            if event.type == "agent.session.failed" and not is_child:
                 live.terminal = "failed"
         terminal = (
             live.message is not None
             and not is_child
             and (
-                event.type == "session.failed"
-                or (event.type == "session.idle" and live.terminal is not None)
+                event.type == "agent.session.failed"
+                or (event.type == "agent.session.idle" and live.terminal is not None)
             )
         )
         if terminal:
@@ -657,15 +709,17 @@ class SessionService:
             }
             await self.store.upsert_message(replace(message, content=placeholder))
 
-    async def _reconcile(self, record: SessionRecord, session: AsyncAgentSession):
+    async def _reconcile(self, record: SessionRecord, session: _AgentSession):
         after = None
         while True:
             page = await session.list_items(limit=100, order="asc", after=after)
             for item in page.data:
-                await self._save_item(record, item)
+                await self._save_item(
+                    record, item.model_dump(mode="json", exclude_none=True)
+                )
             if not page.has_more:
                 break
-            next_after = page.after or (page.data[-1].get("id") if page.data else None)
+            next_after = page.data[-1].id if page.data else None
             if not next_after or next_after == after:
                 raise SessionUnavailable("Invalid retained-item pagination")
             after = next_after
@@ -699,9 +753,10 @@ class SessionService:
                     return candidates[-1] if candidates else None
                 if turn.subagent_id is None:
                     candidates.append(turn)
-            if not page.has_more or not page.last_id:
+            last_id = page.data[-1].id if page.data else None
+            if not page.has_more or not last_id:
                 return candidates[-1] if candidates and previous is None else None
-            page = await session.list_turns(limit=100, order="desc", after=page.last_id)
+            page = await session.list_turns(limit=100, order="desc", after=last_id)
 
     async def _recover_while_active(self, record: SessionRecord, live: _LiveSession):
         failures = 0
@@ -762,7 +817,7 @@ class SessionService:
         live: _LiveSession,
         status: str,
         *,
-        event: SessionEvent | None = None,
+        event: AgentSessionEvent | None = None,
     ):
         async with live.finishing:
             message = live.message

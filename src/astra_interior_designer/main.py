@@ -3,11 +3,11 @@
 import logging
 from contextlib import asynccontextmanager
 
-from agent_api_sdk import AgentAPISDKError
 from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from openai import OpenAIError
 
 from astra_interior_designer.api.sessions import router
 from astra_interior_designer.config import ConfigError, Settings, load_settings
@@ -117,7 +117,7 @@ def create_app(
         application.add_exception_handler(exception, unavailable)
     for exception in (BotoCoreError, ClientError):
         application.add_exception_handler(exception, upstream_failure)
-    application.add_exception_handler(AgentAPISDKError, agent_failure)
+    application.add_exception_handler(OpenAIError, agent_failure)
     application.add_exception_handler(RecordTooLarge, oversized)
     application.add_exception_handler(ValueError, invalid_request)
     application.add_exception_handler(Exception, internal_error)
