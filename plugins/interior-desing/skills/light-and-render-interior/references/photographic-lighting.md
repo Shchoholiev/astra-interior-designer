@@ -16,6 +16,8 @@ When the window is in frame, provide an intentional visible exterior as well as 
 
 Model the emitting region and its supporting light consistently. A bright visible strip and an extra light can double the intended contribution. Use an additional sampling-friendly source deliberately and check that its reflections and spill do not contradict the fixture.
 
+For a lamp that should illuminate its shade, inspect the light's position relative to the bulb mesh, shade, socket, and support geometry. A point light enclosed by an opaque decorative bulb can be blocked by its own proxy. Correct the bulb material or source representation; when a separate light represents the visible bulb's output, a documented shadow-visibility exception for that proxy can be appropriate. Preserve occlusion from the shade, socket, and supports. Verify shade glow and spill together with exposure fixed, and account for both mesh emission and any added light. Follow [lampshade fabric](../../cycles-materials/references/surfaces.md#lampshade-fabric) for shell and scattering checks; an intentionally unlit lamp needs no glow.
+
 Balance warm practicals against the ambient contribution using the reference and neutral surfaces. Avoid tinting every material orange to simulate warm illumination. Preserve subtle cool/warm relationships where they exist; a neutral room brief does not inherit the warm palette of a previous kitchen.
 
 ## Exposure and color

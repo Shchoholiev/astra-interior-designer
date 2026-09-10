@@ -15,6 +15,8 @@ Read secrets from environment variables or the sandbox secret store. Existence o
 
 For network calls, use a bounded timeout (typically 20–30 seconds for metadata). Honor rate limits and `Retry-After`; do not repeatedly retry 401/403. Before sending authentication to a URL from a response, verify that it belongs to the same provider API; do not forward credentials on cross-origin redirects.
 
+An advertised MCP tool does not prove the connected Blender add-on implements it. Use the first bounded search as a capability check and inspect the actual result. An `Unknown command type` response, such as for `search_sketchfab_models`, is a tool/add-on mismatch, not an empty catalog. Record the unsupported command and use the provider's documented API through another permitted client. If access remains unavailable, report that limit and continue with allowed sources or the user's accepted existing asset. Avoid repeating the unsupported command, restarting Blender, or changing add-on versions as an automatic search fallback.
+
 ## Poly Haven
 
 Documentation: https://polyhaven.com/our-api

@@ -12,6 +12,12 @@ For fabric, use the weave direction and a restrained fiber response. Sheen can r
 
 If the cushion lacks thickness, soft edges, or folds in silhouette, report the geometry limitation. Material noise cannot supply those shapes.
 
+## Lampshade fabric
+
+For a lit textile shade, check the actual shell and its modifiers before tuning the shader. A thin-sheet scattering approximation applied to both sides of a Solidify shell can attenuate light twice. Use one deliberate layer for that approximation, or model the real layered construction with a material appropriate to its thickness; do not remove a genuine lining merely to brighten the shade.
+
+Use diffuse transmission, such as a native Translucent BSDF mixed with the fabric surface, to represent light scattered through thin cloth. Clear-glass transmission and uniformly emissive fabric do not reproduce the same appearance. Inspect weave scale and restrained density variation in a completed lit preview, retaining visible top/bottom rims and plausible brightness variation without coarse mottling. If the shade stays dark, check the bulb and source placement using [practical fixture guidance](../../light-and-render-interior/references/photographic-lighting.md) before increasing transmission or light power.
+
 ## Wood and veneer
 
 Align grain with each panel's construction and preserve a believable grain width across objects of different sizes. A cabinet door, end grain, and a curved counter edge can need different mapping. Match satin, oiled, or polished response to the reference before adding wear.
