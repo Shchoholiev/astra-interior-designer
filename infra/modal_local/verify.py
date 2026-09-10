@@ -26,6 +26,10 @@ material = bpy.data.materials.new('Smoke material')
 material.use_nodes = True
 image = bpy.data.images.new('Smoke texture', width=32, height=32)
 image.generated_type = 'COLOR_GRID'
+# Generated images are embedded differently; save a runtime PNG to exercise packing.
+image.filepath_raw = '/workspace/assets/smoke-texture.png'
+image.file_format = 'PNG'
+image.save()
 image.pack()
 texture = material.node_tree.nodes.new('ShaderNodeTexImage')
 texture.image = image
@@ -194,6 +198,7 @@ async def verify(args):
                 "bpy.context.collection.objects.link(o)",
             )
             report["save"] = await evaluate(client, "render.save_scene()")
+            (ROOT / "assets/smoke-texture.png").unlink()
             await evaluate(client, "render.open_scene('/workspace/scene.blend')")
             assert await evaluate(client, SIGNATURE) == before
             assert await evaluate(
