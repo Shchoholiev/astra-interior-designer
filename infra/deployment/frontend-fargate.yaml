@@ -1,0 +1,357 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Astra Interior Designer Next.js frontend on ECS Fargate. The stack reuses the
+  backend VPC, cluster, and ALB while owning a separate service, target group,
+  CloudFront distribution, IAM roles, security group, and logs.
+
+Parameters:
+  ImageUri:
+    Type: String
+    Description: Immutable tag or digest in the frontend ECR repository.
+    AllowedPattern: '^022104542793\.dkr\.ecr\.us-east-1\.amazonaws\.com/astra-interior-designer-web(:[A-Za-z0-9_][A-Za-z0-9_.-]*|@sha256:[a-f0-9]{64})$'
+  OriginSecret:
+    Type: String
+    NoEcho: true
+    MinLength: 32
+    MaxLength: 128
+    AllowedPattern: '^[A-Za-z0-9_-]+$'
+    Description: Random secret shared only by this CloudFront origin and ALB rule.
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Default: vpc-0e69c48178e8bfede
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet::Id
+    Default: subnet-0c4f597585c27e810
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet::Id
+    Default: subnet-0569cd23a445369f1
+  ClusterName:
+    Type: String
+    Default: astra-interior-designer
+  AlbSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Default: sg-01049af5412fe12e2
+  HttpListenerArn:
+    Type: String
+    Default: arn:aws:elasticloadbalancing:us-east-1:022104542793:listener/app/astra-interior-designer-api/ca530ce966bf517d/6965c223edcec19e
+  AlbDomainName:
+    Type: String
+    Default: astra-interior-designer-api-1801475426.us-east-1.elb.amazonaws.com
+  BackendApiUrl:
+    Type: String
+    Default: https://d895b1qs2o034.cloudfront.net
+  BackendSecretArn:
+    Type: String
+    Default: arn:aws:secretsmanager:us-east-1:022104542793:secret:astra-interior-designer/backend-DmkzbG
+
+Resources:
+  TaskSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Astra web tasks; ingress comes only from the shared ALB.
+      VpcId: !Ref VpcId
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS to the backend API and AWS services.
+      Tags:
+        - {Key: Name, Value: astra-interior-designer-web-task}
+        - {Key: project, Value: astra-interior-designer}
+
+  TaskIngressFromAlb:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref TaskSecurityGroup
+      IpProtocol: tcp
+      FromPort: 5173
+      ToPort: 5173
+      SourceSecurityGroupId: !Ref AlbSecurityGroupId
+      Description: Next.js traffic from the shared ALB only.
+
+  AlbEgressToTask:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref AlbSecurityGroupId
+      IpProtocol: tcp
+      FromPort: 5173
+      ToPort: 5173
+      DestinationSecurityGroupId: !Ref TaskSecurityGroup
+      Description: Forward requests and health checks to the web task.
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: astra-interior-web
+      VpcId: !Ref VpcId
+      Port: 5173
+      Protocol: HTTP
+      TargetType: ip
+      HealthCheckEnabled: true
+      HealthCheckPath: /api/health
+      HealthCheckProtocol: HTTP
+      HealthCheckPort: traffic-port
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      Matcher: {HttpCode: '200'}
+      TargetGroupAttributes:
+        - {Key: deregistration_delay.timeout_seconds, Value: '120'}
+      Tags:
+        - {Key: project, Value: astra-interior-designer}
+
+  CloudFrontOriginRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref HttpListenerArn
+      Priority: 2
+      Conditions:
+        - Field: http-header
+          HttpHeaderConfig:
+            HttpHeaderName: X-Astra-Web-Origin-Verify
+            Values: [!Ref OriginSecret]
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /astra-interior-designer/frontend
+      RetentionInDays: 7
+      Tags:
+        - {Key: project, Value: astra-interior-designer}
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: astra-interior-designer-web-task
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ecs-tasks.amazonaws.com}
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: '022104542793'
+              ArnLike:
+                aws:SourceArn: arn:aws:ecs:us-east-1:022104542793:*
+      Tags:
+        - {Key: project, Value: astra-interior-designer}
+
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: astra-interior-designer-web-execution
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ecs-tasks.amazonaws.com}
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: '022104542793'
+              ArnLike:
+                aws:SourceArn: arn:aws:ecs:us-east-1:022104542793:*
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: astra-interior-designer-web-secret
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref BackendSecretArn
+      Tags:
+        - {Key: project, Value: astra-interior-designer}
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: astra-interior-designer-web
+      RequiresCompatibilities: [FARGATE]
+      NetworkMode: awsvpc
+      Cpu: '256'
+      Memory: '512'
+      RuntimePlatform:
+        OperatingSystemFamily: LINUX
+        CpuArchitecture: ARM64
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      ExecutionRoleArn: !GetAtt ExecutionRole.Arn
+      ContainerDefinitions:
+        - Name: frontend
+          Image: !Ref ImageUri
+          Essential: true
+          StopTimeout: 120
+          PortMappings:
+            - {ContainerPort: 5173, Protocol: tcp}
+          Environment:
+            - {Name: NODE_ENV, Value: production}
+            - {Name: HOSTNAME, Value: 0.0.0.0}
+            - {Name: PORT, Value: '5173'}
+            - {Name: NEXT_PUBLIC_ASTRA_BACKEND_ENABLED, Value: 'true'}
+            - {Name: ASTRA_API_URL, Value: !Ref BackendApiUrl}
+          Secrets:
+            - Name: ASTRA_API_KEY
+              ValueFrom: !Sub '${BackendSecretArn}:APP_API_KEY::'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: us-east-1
+              awslogs-stream-prefix: frontend
+      Tags:
+        - {Key: project, Value: astra-interior-designer}
+
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - CloudFrontOriginRule
+      - TaskIngressFromAlb
+      - AlbEgressToTask
+    Properties:
+      ServiceName: astra-interior-designer-web
+      Cluster: !Ref ClusterName
+      TaskDefinition: !Ref TaskDefinition
+      LaunchType: FARGATE
+      PlatformVersion: LATEST
+      DesiredCount: 1
+      HealthCheckGracePeriodSeconds: 120
+      EnableECSManagedTags: true
+      PropagateTags: SERVICE
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 100
+        MaximumPercent: 200
+        DeploymentCircuitBreaker: {Enable: true, Rollback: true}
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups: [!Ref TaskSecurityGroup]
+          Subnets: [!Ref PublicSubnetA, !Ref PublicSubnetB]
+      LoadBalancers:
+        - ContainerName: frontend
+          ContainerPort: 5173
+          TargetGroupArn: !Ref TargetGroup
+      Tags:
+        - {Key: project, Value: astra-interior-designer}
+
+  DisabledCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: astra-interior-designer-web-no-cache
+        Comment: Dynamic UI and API requests must reach the Next.js task.
+        MinTTL: 0
+        DefaultTTL: 0
+        MaxTTL: 0
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: false
+          EnableAcceptEncodingBrotli: false
+          HeadersConfig: {HeaderBehavior: none}
+          CookiesConfig: {CookieBehavior: none}
+          QueryStringsConfig: {QueryStringBehavior: none}
+
+  StaticCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: astra-interior-designer-web-static
+        Comment: Cache immutable Next.js build assets.
+        MinTTL: 86400
+        DefaultTTL: 31536000
+        MaxTTL: 31536000
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          HeadersConfig: {HeaderBehavior: none}
+          CookiesConfig: {CookieBehavior: none}
+          QueryStringsConfig: {QueryStringBehavior: none}
+
+  WebOriginRequestPolicy:
+    Type: AWS::CloudFront::OriginRequestPolicy
+    Properties:
+      OriginRequestPolicyConfig:
+        Name: astra-interior-designer-web-requests
+        Comment: Forward browser request metadata without replacing the ALB host.
+        HeadersConfig:
+          HeaderBehavior: allExcept
+          Headers: [Host]
+        CookiesConfig: {CookieBehavior: all}
+        QueryStringsConfig: {QueryStringBehavior: all}
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: Astra Interior Designer web application
+        Enabled: true
+        IPV6Enabled: true
+        HttpVersion: http2
+        PriceClass: PriceClass_100
+        ViewerCertificate: {CloudFrontDefaultCertificate: true}
+        Origins:
+          - Id: astra-web-alb
+            DomainName: !Ref AlbDomainName
+            ConnectionAttempts: 3
+            ConnectionTimeout: 10
+            OriginCustomHeaders:
+              - HeaderName: X-Astra-Web-Origin-Verify
+                HeaderValue: !Ref OriginSecret
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginProtocolPolicy: http-only
+              OriginReadTimeout: 120
+              OriginKeepaliveTimeout: 60
+        DefaultCacheBehavior:
+          TargetOriginId: astra-web-alb
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachedMethods: [GET, HEAD, OPTIONS]
+          Compress: true
+          CachePolicyId: !Ref DisabledCachePolicy
+          OriginRequestPolicyId: !Ref WebOriginRequestPolicy
+        CacheBehaviors:
+          - PathPattern: '/_next/static/*'
+            TargetOriginId: astra-web-alb
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD, OPTIONS]
+            CachedMethods: [GET, HEAD, OPTIONS]
+            Compress: true
+            CachePolicyId: !Ref StaticCachePolicy
+          - PathPattern: '/api/*'
+            TargetOriginId: astra-web-alb
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+            CachedMethods: [GET, HEAD, OPTIONS]
+            Compress: false
+            CachePolicyId: !Ref DisabledCachePolicy
+            OriginRequestPolicyId: !Ref WebOriginRequestPolicy
+        CustomErrorResponses:
+          - {ErrorCode: 400, ErrorCachingMinTTL: 0}
+          - {ErrorCode: 403, ErrorCachingMinTTL: 0}
+          - {ErrorCode: 404, ErrorCachingMinTTL: 0}
+          - {ErrorCode: 500, ErrorCachingMinTTL: 0}
+          - {ErrorCode: 502, ErrorCachingMinTTL: 0}
+          - {ErrorCode: 503, ErrorCachingMinTTL: 0}
+          - {ErrorCode: 504, ErrorCachingMinTTL: 0}
+      Tags:
+        - {Key: project, Value: astra-interior-designer}
+
+Outputs:
+  WebUrl:
+    Description: Public HTTPS URL for the web application.
+    Value: !Sub 'https://${Distribution.DomainName}'
+  CloudFrontDistributionId:
+    Value: !Ref Distribution
+  ServiceName:
+    Value: !GetAtt Service.Name
+  TargetGroupArn:
+    Value: !Ref TargetGroup
+  LogGroupName:
+    Value: !Ref LogGroup

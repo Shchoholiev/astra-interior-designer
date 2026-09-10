@@ -222,3 +222,8 @@ __marimo__/
 
 # Standalone Modal image build tools
 .venv-modal/
+
+# Next.js build output
+web/.next/
+web/node_modules/
+web/*.tsbuildinfo
