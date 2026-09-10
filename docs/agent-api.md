@@ -3,6 +3,7 @@
 | Endpoint | Contract | Sandbox / storage actions |
 |---|---|---|
 | `POST /sessions` | Create an Agents API session. Return `session_id`. | Assign storage prefix `sandboxes/{session_id}/` in the shared private bucket, persist the association, and start its sandbox. |
+| `GET /sessions` | Return the current user's sessions ordered by most recently updated. | Read session metadata from DynamoDB. Do not start compute or generate signed scene URLs. |
 | `GET /sessions/{session_id}` | Return session status, sandbox status, paginated chat history, and a fresh presigned `scene_url` valid for 12 hours (`43,200` seconds), with `scene_url_expires_at`. `scene_url` is `null` before the first export. | Read session metadata and messages from DynamoDB. Inspect the existing sandbox and resolve `sandboxes/{session_id}/scene.glb` in S3; do not start compute. |
 | `POST /sessions/{session_id}/message` | Accept `{message_id, text, attachment_keys?}` and stream native Agents API events over SSE. Use `message_id` as the idempotency key. Attachments reference objects under this session's `inputs/` prefix. | Reuse the sandbox or start it if stopped. Wait for Blender/MCP readiness and Agents API executor connection before submitting input. |
 | `POST /sessions/{session_id}/cancel` | Request cancellation of the active turn through the Agents API. | No sandbox shutdown. Preserve the chat, DB history, and S3 files. |

@@ -279,6 +279,9 @@ class SessionService:
                 await self._release(session_id)
         return await self._owned(session_id, owner_id)
 
+    async def list_sessions(self, *, owner_id: str) -> list[SessionRecord]:
+        return await self.store.list_sessions(owner_id)
+
     async def stream_message(
         self,
         session_id: str,
