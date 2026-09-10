@@ -219,3 +219,6 @@ __marimo__/
 
 # Local Agents API probe
 /scripts/check_agents_model.py
+
+# Standalone Modal image build tools
+.venv-modal/
