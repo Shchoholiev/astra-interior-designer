@@ -40,10 +40,11 @@ class Settings(BaseSettings):
     agent_model: str = "gpt-6-astra"
     cors_origins: tuple[str, ...] = ()
 
-    modal_image: str = "astra-blender:v1"
+    modal_image: str = "astra-blender:v2"
     modal_launch_command: tuple[str, ...] = ()
     modal_health_command: tuple[str, ...] = ()
     modal_reconnect_command: tuple[str, ...] = ()
+    modal_sync_inputs_command: tuple[str, ...] = ()
     modal_executor_secret_name: str = ""
     sandbox_s3_role_arn: str | None = None
     sandbox_timeout_seconds: int = Field(default=3600, gt=0)

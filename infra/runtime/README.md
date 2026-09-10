@@ -24,7 +24,7 @@ app = modal.App.lookup("astra-interior-designer-blender", create_if_missing=True
 image = production_image().build(app)
 # Run the live session, storage, busy-health and reconnect checks using image.
 # After they pass, publish this exact built image:
-image.publish("astra-blender:v1")
+image.publish("astra-blender:v2")
 ```
 
 `python infra/runtime/image.py --publish` performs the build and publication in
@@ -52,7 +52,13 @@ prefixes, reading its inputs and `scene.glb`, and writing its `scene.glb`. Resto
 uses `ListObjectsV2` with the exact scene prefix and requires an exact key match;
 an empty listing means there is no persisted scene. It does not rely on `HEAD`
 returning 404 under a prefix-constrained policy. The backend caps sandbox
-lifetime before these credentials expire. There are no S3 filesystem mounts.
+lifetime before these credentials expire. No S3 filesystem mount is used.
+The root supervisor downloads this session's inputs into `/workspace/inputs`.
+Blender, Xvfb, and the executor run as `astra-agent` (UID/GID 10001). Input
+directories belong to root with mode `0755`; downloaded files have mode `0444`.
+The root-owned workspace uses the sticky bit so the agent can create working
+files and scene exports without replacing the inputs directory. The supervisor
+retains the S3 credentials; child processes do not receive them.
 
 The backend command contract is:
 
@@ -60,9 +66,10 @@ The backend command contract is:
 python /opt/astra/runtime.py start
 python /opt/astra/runtime.py health
 python /opt/astra/runtime.py reconnect-executor
+python /opt/astra/runtime.py sync-inputs
 ```
 
-`start` restores inputs and the last complete GLB, starts Xvfb and persistent
+`start` downloads inputs and restores the last complete GLB, starts Xvfb and persistent
 Blender, executes a real scene query, then starts the executor. Blender imports
 the restored GLB into its scene and selects OptiX GPU devices with CPU rendering
 disabled. The original working `.blend` state is not persisted by this contract.
@@ -83,8 +90,12 @@ the executor process group. It preserves Blender, Xvfb, the environment ID, and
 local files. Its success means the replacement process launched; the backend
 must separately observe the OpenAI environment connection before submitting work.
 
-Every two seconds, storage synchronization downloads new or changed inputs using
-conditional S3 reads and atomic local replacements. It publishes `scene.glb` only
+Every two seconds, the supervisor downloads new or changed inputs using
+conditional S3 reads and atomic local replacements, then checks the scene export.
+`sync-inputs` performs the same serialized input download on demand. The backend
+waits for it before submitting a message with attachments; the upload endpoint and
+its presigned PUT contract are unchanged. Working files belong elsewhere under
+`/workspace`. The supervisor publishes `scene.glb` only
 after two unchanged file observations and successful validation of a complete,
 self-contained GLB. Uploads read a separate stable snapshot and set
 `Content-Type: model/gltf-binary`. Identical scene contents are not uploaded again.

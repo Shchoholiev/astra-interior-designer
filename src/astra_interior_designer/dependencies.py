@@ -171,6 +171,7 @@ async def build_services(settings: Settings) -> Services:
             launch_command=settings.modal_launch_command,
             health_command=settings.modal_health_command,
             reconnect_command=settings.modal_reconnect_command,
+            sync_inputs_command=settings.modal_sync_inputs_command,
             executor_secret_name=settings.modal_executor_secret_name,
             s3_credentials=sandbox_credentials,
             image_name=settings.modal_image,

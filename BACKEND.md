@@ -67,7 +67,7 @@ secret containing the restricted executor credential. The adapter provisions
 `RTX-PRO-6000` compute and waits for both Blender health and an actual Agents API
 executor connection. Reconnection must preserve the existing Blender process.
 
-The production `astra-blender:v1` runtime is a separate prerequisite. The tested
+The production `astra-blender:v2` runtime is a separate prerequisite. The tested
 Blender probe image alone does not provide executor attachment or S3 transfer.
 Do not point the backend at it as a working production runtime.
 

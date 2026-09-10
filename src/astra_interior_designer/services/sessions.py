@@ -149,7 +149,9 @@ class SessionService:
         model: str = "gpt-6-astra",
         instructions: str = (
             "You are an interior design assistant. Use Blender and its installed MCP "
-            "tools to edit scenes. Input files are in /workspace/inputs. Export a "
+            "tools to edit scenes. Input files are read-only local copies in "
+            "/workspace/inputs; "
+            "copy them elsewhere in /workspace if edits are needed. Export a "
             "self-contained GLB to /workspace/scene.glb for the browser viewer."
         ),
         readiness_timeout: float = 120,
@@ -331,7 +333,7 @@ class SessionService:
             live = await self._watch_session(record, session)
             if info.status != "in_progress":
                 try:
-                    await self._ready(record, live)
+                    sandbox_id = await self._ready(record, live)
                 except SessionUnavailable as exc:
                     if exc.sandbox_id:
                         try:
@@ -357,6 +359,14 @@ class SessionService:
                                 type(cleanup_error).__name__,
                             )
                     raise
+                if keys and (old is None or old.turn_id is None):
+                    try:
+                        await self.sandbox.sync_inputs(sandbox_id)
+                    except Exception as exc:
+                        raise SessionUnavailable(
+                            "Uploaded input files are not ready in the sandbox"
+                        ) from exc
+                    self._check_lease(session_id)
             if old is None:
                 turns = await session.list_turns(limit=1, order="desc")
                 previous_turn_id = turns.data[0].id if turns.data else None

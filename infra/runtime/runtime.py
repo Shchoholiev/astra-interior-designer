@@ -1,4 +1,4 @@
-"""Session-local Blender/executor supervisor and S3 workspace synchronization."""
+"""Root-owned S3 synchronization with an unprivileged Blender/executor runtime."""
 
 import argparse
 import contextlib
@@ -23,6 +23,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
 
+AGENT_UID = 10001
+AGENT_GID = 10001
+
 
 @dataclass(frozen=True)
 class Config:
@@ -34,6 +37,7 @@ class Config:
     remote_url: str
     workspace: Path = Path("/workspace")
     state_dir: Path = Path("/run/astra")
+    blender_state_dir: Path = Path("/run/astra-blender")
 
     @classmethod
     def from_env(cls, env):
@@ -79,7 +83,7 @@ def destination_parent(root, relative):
     try:
         for part in parts[:-1]:
             try:
-                os.mkdir(part, mode=0o700, dir_fd=descriptor)
+                os.mkdir(part, mode=0o755, dir_fd=descriptor)
             except FileExistsError:
                 pass
             try:
@@ -94,6 +98,8 @@ def destination_parent(root, relative):
                 ) from error
             os.close(descriptor)
             descriptor = child
+            os.fchown(descriptor, 0, 0)
+            os.fchmod(descriptor, 0o755)
         try:
             existing = os.stat(parts[-1], dir_fd=descriptor, follow_symlinks=False)
             if not stat.S_ISREG(existing.st_mode):
@@ -101,6 +107,16 @@ def destination_parent(root, relative):
         except FileNotFoundError:
             pass
         yield descriptor, parts[-1]
+    finally:
+        os.close(descriptor)
+
+
+def prepare_directory(path, mode, *, uid=0, gid=0):
+    path.mkdir(parents=True, exist_ok=True)
+    descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        os.fchown(descriptor, uid, gid)
+        os.fchmod(descriptor, mode)
     finally:
         os.close(descriptor)
 
@@ -150,6 +166,7 @@ class WorkspaceSync:
     def __init__(self, config, client):
         self.config = config
         self.client = client
+        self.input_lock = threading.RLock()
         self.input_etags = {}
         self.pending_scene = None
         self.uploaded_scene = None
@@ -181,6 +198,12 @@ class WorkspaceSync:
                         self.uploaded_hash = hashlib.file_digest(
                             output, "sha256"
                         ).digest()
+                    os.fchown(
+                        output.fileno(),
+                        AGENT_UID if scene else 0,
+                        AGENT_GID if scene else 0,
+                    )
+                    os.fchmod(output.fileno(), 0o600 if scene else 0o444)
                 os.replace(temporary, name, src_dir_fd=parent, dst_dir_fd=parent)
             finally:
                 try:
@@ -189,26 +212,31 @@ class WorkspaceSync:
                     pass
 
     def sync_inputs(self):
-        prefix = self.config.prefix + "inputs/"
-        pages = self.client.get_paginator("list_objects_v2").paginate(
-            Bucket=self.config.bucket,
-            Prefix=prefix,
-        )
-        for page in pages:
-            for item in page.get("Contents", []):
-                key = item["Key"]
-                if not key.startswith(prefix):
-                    raise ValueError("S3 returned an object outside this session")
-                if key.endswith("/"):
-                    continue
-                relative = "inputs/" + key[len(prefix) :]
-                if self.input_etags.get(key) == item["ETag"]:
-                    continue
-                self.download(key, relative, item["ETag"])
-                self.input_etags[key] = item["ETag"]
+        # The explicit pre-message sync and background polling share this lock.
+        with self.input_lock:
+            prefix = self.config.prefix + "inputs/"
+            pages = self.client.get_paginator("list_objects_v2").paginate(
+                Bucket=self.config.bucket,
+                Prefix=prefix,
+            )
+            for page in pages:
+                for item in page.get("Contents", []):
+                    key = item["Key"]
+                    if not key.startswith(prefix):
+                        raise ValueError("S3 returned an object outside this session")
+                    if key.endswith("/"):
+                        continue
+                    relative = "inputs/" + key[len(prefix) :]
+                    if self.input_etags.get(key) == item["ETag"]:
+                        continue
+                    self.download(key, relative, item["ETag"])
+                    self.input_etags[key] = item["ETag"]
 
     def restore(self):
-        self.config.workspace.mkdir(parents=True, exist_ok=True)
+        # Sticky ownership protects inputs/ from replacement by the agent while
+        # allowing it to create working files and atomic scene exports alongside it.
+        prepare_directory(self.config.workspace, 0o1777)
+        prepare_directory(self.config.workspace / "inputs", 0o755)
         self.sync_inputs()
         key = self.config.prefix + "scene.glb"
         # A prefix-constrained ListBucket grant can list this exact key without
@@ -310,6 +338,9 @@ class ControlHandler(socketserver.StreamRequestHandler):
                     "executor_running": supervisor.running("executor"),
                     "ok": True,
                 }
+            elif command == "sync-inputs":
+                supervisor.sync.sync_inputs()
+                result = {"ok": True}
             else:
                 result = {"ok": False, "error": "Unknown runtime command"}
         except Exception as error:
@@ -337,20 +368,27 @@ class Supervisor:
 
     def spawn(self, name, command):
         environment = dict(os.environ)
+        for key in (
+            "AWS_ACCESS_KEY_ID",
+            "AWS_SECRET_ACCESS_KEY",
+            "AWS_SESSION_TOKEN",
+            "AWS_SECURITY_TOKEN",
+        ):
+            environment.pop(key, None)
         if name != "executor":
-            for key in (
-                "CODEX_API_KEY",
-                "AWS_ACCESS_KEY_ID",
-                "AWS_SECRET_ACCESS_KEY",
-                "AWS_SESSION_TOKEN",
-            ):
-                environment.pop(key, None)
+            environment.pop("CODEX_API_KEY", None)
+        environment.update(
+            HOME="/home/astra-agent", USER="astra-agent", LOGNAME="astra-agent"
+        )
         # Inherit stdout/stderr directly so provider logs retain child failures.
         self.children[name] = subprocess.Popen(
             command,
             cwd=self.config.workspace,
             env=environment,
             start_new_session=True,
+            user=AGENT_UID,
+            group=AGENT_GID,
+            extra_groups=[],
         )
 
     def start_executor(self):
@@ -407,7 +445,7 @@ class Supervisor:
         try:
             return (
                 json.loads(
-                    (self.config.state_dir / "blender-command.json").read_text()
+                    (self.config.blender_state_dir / "blender-command.json").read_text()
                 ).get("busy")
                 is True
             )
@@ -473,8 +511,10 @@ class Supervisor:
             self.stopping.wait(0.2)
 
     def run(self):
-        self.config.state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
-        self.config.workspace.mkdir(parents=True, exist_ok=True)
+        prepare_directory(self.config.state_dir, 0o700)
+        prepare_directory(
+            self.config.blender_state_dir, 0o700, uid=AGENT_UID, gid=AGENT_GID
+        )
         # Keep ownership for the supervisor's full lifetime; reject duplicate starts.
         with (self.config.state_dir / "supervisor.lock").open("w") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -490,7 +530,6 @@ class Supervisor:
                 storage_thread = None
                 try:
                     self.sync.restore()
-                    (self.config.workspace / "inputs").mkdir(exist_ok=True)
                     self.spawn(
                         "xvfb",
                         [
@@ -561,7 +600,9 @@ class Supervisor:
 
 def control_request(command, state_dir=Path("/run/astra")):
     with socket.socket(socket.AF_UNIX) as connection:
-        connection.settimeout(25 if command == "reconnect-executor" else 5)
+        connection.settimeout(
+            {"reconnect-executor": 25, "sync-inputs": 60}.get(command, 5)
+        )
         connection.connect(str(state_dir / "control.sock"))
         connection.sendall(command.encode() + b"\n")
         with connection.makefile("rb") as reader:
@@ -576,7 +617,9 @@ def control_request(command, state_dir=Path("/run/astra")):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("start", "health", "reconnect-executor"))
+    parser.add_argument(
+        "command", choices=("start", "health", "reconnect-executor", "sync-inputs")
+    )
     command = parser.parse_args().command
     try:
         if command != "start":
