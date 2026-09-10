@@ -179,6 +179,10 @@ async def send_message(
         # chunk, CloudFront can reach its origin response timeout before Modal
         # has connected the executor, so the browser never receives SSE.
         yield b": connected\n\n"
+        yield (
+            b"event: astra.progress\n"
+            b'data: {"stage":"sandbox","label":"Preparing the Blender sandbox"}\n\n'
+        )
         preparing = asyncio.create_task(
             services.sessions.stream_message(
                 session_id,
@@ -192,7 +196,11 @@ async def send_message(
             while not preparing.done():
                 await asyncio.wait({preparing}, timeout=10)
                 if not preparing.done():
-                    yield b": preparing\n\n"
+                    yield (
+                        b"event: astra.progress\n"
+                        b'data: {"stage":"sandbox","label":"Waiting for Blender '
+                        b'and the agent to connect"}\n\n'
+                    )
             events = await preparing
             async with aclosing(events):
                 async for event in events:

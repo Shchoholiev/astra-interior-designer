@@ -47,6 +47,7 @@ function ChatMessage() {
               get_viewport_screenshot: "Reviewing the room",
               execute_blender_code: "Updating the room in Blender",
               get_addon_status: "Checking Blender",
+              prepare_blender_sandbox: "Connecting the Blender sandbox",
             };
             return (
               <div className="my-2 flex items-center gap-2 rounded-xl border border-[#d8d1c5] bg-[#f5f1e9] px-3 py-2 text-sm text-[#526057]">

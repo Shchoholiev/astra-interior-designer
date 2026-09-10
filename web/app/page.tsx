@@ -154,6 +154,7 @@ function SessionWorkspace({ initialSession, sessions, onSelectSession, onNewSess
       const text = input.text || "Use the attached files to update the room.";
       let output = "";
       const tools = new Map<string, ToolCallMessagePart>();
+      const preparationId = "astra-sandbox-preparation";
       const content = (): ThreadAssistantMessagePart[] => [
         ...tools.values(),
         ...(output ? [{ type: "text" as const, text: output }] : []),
@@ -166,6 +167,28 @@ function SessionWorkspace({ initialSession, sessions, onSelectSession, onNewSess
         for await (const event of api.sendMessage(messageId, text, attachmentKeys, abortSignal)) {
           if (event.event === "astra.error") {
             throw new Error(typeof event.data.detail === "string" ? event.data.detail : "Generation failed.");
+          }
+          if (event.event === "astra.progress") {
+            const label = typeof event.data.label === "string"
+              ? event.data.label
+              : "Preparing the Blender sandbox";
+            setProgress({ label });
+            tools.set(preparationId, {
+              type: "tool-call",
+              toolCallId: preparationId,
+              toolName: "prepare_blender_sandbox",
+              args: {},
+              argsText: "{}",
+            });
+            yield { content: content() };
+            continue;
+          }
+          const preparation = tools.get(preparationId);
+          if (preparation && preparation.result === undefined) {
+            tools.set(preparationId, {
+              ...preparation,
+              result: { status: "completed" },
+            });
           }
           const label = progressFor(event);
           if (label) setProgress({ label });
@@ -198,6 +221,14 @@ function SessionWorkspace({ initialSession, sessions, onSelectSession, onNewSess
         }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
+        const preparation = tools.get(preparationId);
+        if (preparation && preparation.result === undefined) {
+          tools.set(preparationId, {
+            ...preparation,
+            result: { status: "failed" },
+            isError: true,
+          });
+        }
         output = error instanceof Error
           ? `I couldn't complete this generation: ${error.message}`
           : "I couldn't complete this generation.";

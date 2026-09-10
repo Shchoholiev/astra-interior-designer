@@ -184,7 +184,13 @@ export class AstraApi {
           else if (line.startsWith("id:")) id = line.slice(3).trim();
           else if (line.startsWith("data:")) data.push(line.slice(5).trimStart());
         }
-        if (data.length) yield { event, id, data: JSON.parse(data.join("\n")) };
+        if (data.length) {
+          const payload = JSON.parse(data.join("\n")) as Record<string, unknown>;
+          const resolvedEvent = event === "message" && typeof payload.type === "string"
+            ? payload.type
+            : event;
+          yield { event: resolvedEvent, id, data: payload };
+        }
       }
       if (done) break;
     }
