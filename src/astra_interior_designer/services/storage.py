@@ -61,6 +61,7 @@ class SessionRecord:
     session_id: str
     environment_id: str
     storage_prefix: str
+    remote_url: str | None = None
     status: str = "starting"
     sandbox_id: str | None = None
     owner_id: str | None = None

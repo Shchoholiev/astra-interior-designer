@@ -90,6 +90,7 @@ class SandboxService:
         environment_id: str,
         bucket_name: str,
         storage_prefix: str,
+        remote_url: str | None = None,
     ) -> SandboxHandle:
         if not session_id or "/" in session_id or not environment_id or not bucket_name:
             raise ValueError(
@@ -147,7 +148,7 @@ class SandboxService:
                     "S3_PREFIX": storage_prefix,
                     "AWS_REGION": self.aws_region,
                     "AWS_DEFAULT_REGION": self.aws_region,
-                    "AGENTS_REMOTE_URL": self.remote_url,
+                    "AGENTS_REMOTE_URL": remote_url or self.remote_url,
                 },
                 secrets=[
                     modal.Secret.from_dict(secret),

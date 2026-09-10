@@ -86,6 +86,24 @@ def prepare(
     output = Path(tempfile.mkdtemp(prefix="astra-backend-build-"))
     try:
         stage_application(project, output, include_dockerfile=include_dockerfile)
+        subprocess.run(
+            [
+                "uv",
+                "export",
+                "--project",
+                str(project),
+                "--frozen",
+                "--no-dev",
+                "--no-emit-project",
+                "--no-emit-package",
+                "agent-api-sdk",
+                "--no-header",
+                "--no-annotate",
+                "--output-file",
+                str(output / "requirements.txt"),
+            ],
+            check=True,
+        )
         with tempfile.TemporaryDirectory(prefix="astra-sdk-source-") as temporary:
             source = Path(temporary) / "sdk"
             archive_sdk(sdk_source, revision, source)

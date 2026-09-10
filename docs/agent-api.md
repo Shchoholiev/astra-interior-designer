@@ -13,7 +13,7 @@
 
 | Contract | Responsibility |
 |---|---|
-| `start(session_id, environment_id, bucket_name, storage_prefix) -> SandboxHandle` | Provision Modal `RTX-PRO-6000` compute from a prebuilt image containing Blender, its MCP integration, the S3 SDK, and `codex exec-server`. Configure access to `storage_prefix` in the shared bucket, prepare local `/workspace`, launch Blender/MCP and the executor, and make MCP tools callable by the agent. Return `sandbox_id`. |
+| `start(session_id, environment_id, remote_url, bucket_name, storage_prefix) -> SandboxHandle` | Provision Modal `RTX-PRO-6000` compute from a prebuilt image containing Blender, its MCP integration, the S3 SDK, and `codex exec-server`. Pass the session's Agents API `remote_url` through unchanged, configure access to `storage_prefix` in the shared bucket, prepare local `/workspace`, launch Blender/MCP and the executor, and make MCP tools callable by the agent. Return `sandbox_id`. |
 | `get(sandbox_id) -> SandboxState` | Report provider state and Blender/MCP health. Provider startup alone does not imply the agent can use the sandbox. |
 | `stop(sandbox_id) -> None` | Internal compute cleanup; safe to repeat if already stopped. Preserve the chat, DB history, and S3 files. |
 | Session orchestration | Persist `session_id`, `environment_id`, `sandbox_id`, and `storage_prefix`. The shared bucket name is backend configuration. Own duplicate-start prevention, Agents API connection readiness, messaging, cancellation, and startup-failure cleanup. Browser disconnection does not cancel work or stop compute. |

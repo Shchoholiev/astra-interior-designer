@@ -201,6 +201,7 @@ class SessionService:
                 session_id=session.id,
                 environment_id=environment_id,
                 storage_prefix=f"sandboxes/{session.id}/",
+                remote_url=session.info.environment.remote_url,
                 owner_id=owner_id,
                 title=title,
             )
@@ -491,6 +492,8 @@ class SessionService:
                             record.environment_id,
                             self.bucket_name,
                             record.storage_prefix,
+                            record.remote_url
+                            or live.session.info.environment.remote_url,
                         )
                     except Exception as exc:
                         started_id = getattr(exc, "sandbox_id", None)
