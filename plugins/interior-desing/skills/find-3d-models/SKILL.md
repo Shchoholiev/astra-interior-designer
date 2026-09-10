@@ -45,3 +45,7 @@ Use these verification levels accurately: **listed** (search/detail returned), *
 Fetch the selected resolution into the user's requested asset directory or an isolated task directory. Inspect file signatures, sizes and provided checksums; check glTF/OBJ dependencies or archive contents. Account for MTL options such as `-bm 1` when resolving texture paths. Extract only paths within the destination directory. Save provenance with the asset: source URL, provider/ID, author, license/link, selected format/resolution, and verification performed.
 
 Use the API token only on its provider's authenticated API. Fetch signed CDN URLs without that token. Keep secrets out of skill files, URLs, output, and logs. Place credentials in sandbox secrets rather than in the copied skill. Uploading to S3, changing a scene, purchasing assets, and configuring a public multiuser download service require their own task scope.
+
+## Handoff to an interior build
+
+For an authorized interior assembly task, pass the selected local package, provenance, dependency checks, and intended physical size to [build-interior-scene](../build-interior-scene/SKILL.md). Scene assembly can continue under that existing authorization. For search/download-only requests, return the asset without changing the open scene. Reuse a previously verified suitable asset rather than repeating discovery for every placement.
