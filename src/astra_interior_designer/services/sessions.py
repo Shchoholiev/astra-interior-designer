@@ -517,6 +517,14 @@ class SessionService:
                         return sandbox_id
                     await asyncio.sleep(self.poll_interval)
         except Exception as exc:
+            log.warning(
+                "Session readiness failed session=%s sandbox=%s "
+                "error_type=%s cause_type=%s",
+                record.session_id,
+                started_id or sandbox_id,
+                type(exc).__name__,
+                type(exc.__cause__).__name__ if exc.__cause__ else None,
+            )
             raise SessionUnavailable(
                 "Sandbox or Agents API connection is not ready", sandbox_id=started_id
             ) from exc

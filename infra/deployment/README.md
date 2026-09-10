@@ -1,0 +1,49 @@
+# Fargate deployment
+
+Public API: **https://d895b1qs2o034.cloudfront.net** (the stack's `ApiUrl` output).
+Account `022104542793`, region `us-east-1`, stack `astra-interior-designer-backend`.
+The backend runs as one ECS Fargate task: Linux x86_64, 0.5 vCPU, 1 GiB, one Uvicorn worker on port 8000.
+
+## Build and push
+
+Run from the repository root with Docker, uv, the project virtual environment, and an authenticated AWS deployment profile.
+The staging helper uses the SDK commit in `uv.lock`; its local checkout must be available in the uv cache or supplied with `--sdk-source`.
+Only application sources, package metadata, the locked SDK wheel, and the explicit Dockerfile enter the build context.
+
+```sh
+ASTRA_BUILD_CONTEXT="$(.venv/bin/python infra/deployment/prepare_backend_build.py --dockerfile)"
+ASTRA_ECR=022104542793.dkr.ecr.us-east-1.amazonaws.com/astra-interior-designer-backend
+ASTRA_IMAGE_TAG="release-$(date -u +%Y%m%dT%H%M%SZ)"
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "${ASTRA_ECR%/*}"
+docker build --platform linux/amd64 -t "$ASTRA_ECR:$ASTRA_IMAGE_TAG" "$ASTRA_BUILD_CONTEXT"
+docker push "$ASTRA_ECR:$ASTRA_IMAGE_TAG"
+ASTRA_DIGEST="$(aws ecr describe-images --region us-east-1 --repository-name astra-interior-designer-backend --image-ids "imageTag=$ASTRA_IMAGE_TAG" --query 'imageDetails[0].imageDigest' --output text)"
+aws cloudformation deploy --region us-east-1 --stack-name astra-interior-designer-backend \
+  --template-file infra/deployment/fargate.yaml --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides "ImageUri=$ASTRA_ECR@$ASTRA_DIGEST"
+```
+
+Use a fresh immutable tag for each build and deploy its digest. The command above preserves existing stack parameters.
+Initial stack creation also requires `OriginSecret`: securely supply a random 32–128 character value using letters, digits, `_`, or `-`.
+
+## Configuration and ownership
+
+The stack owns only this application's VPC, ALB, CloudFront distribution, ECS resources, IAM task/execution roles, and logs.
+The existing ECR repository, S3 bucket, DynamoDB tables, backend secret, and sandbox S3 role remain external resources.
+Add the stack's `TaskRoleArn` to the existing `astra-interior-designer-sandbox-s3` role's trust policy before creating sessions.
+The task role reads `astra-interior-designer/backend` through `AWS_SECRET_ID`; do not inject `AWS_PROFILE` or static AWS access keys.
+The secret contains `OPENAI_API_KEY`, `APP_API_KEY`, `S3_SIGNING_ACCESS_KEY_ID`, and `S3_SIGNING_SECRET_ACCESS_KEY`.
+ECS also injects `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` from that secret using the execution role.
+The dedicated S3 signing credentials must cover the full 12-hour scene URL lifetime.
+`CORS_ORIGINS` allows `http://localhost:3000` and `http://localhost:5173`; update the task definition when frontend origins change.
+
+## Runtime and verification
+
+Build the Blender sandbox image with `.venv-modal/bin/python infra/runtime/image.py`; add `--publish` after validation to publish `astra-blender:v1`.
+The Fargate application creates Modal sandboxes from that image and uses the `astra-openai-executor` Modal secret for their executor credential.
+`GET /health` is unauthenticated and returns `{"status":"ok"}`; `/sessions` routes require the application Bearer token.
+Read deployment outputs with `aws cloudformation describe-stacks --region us-east-1 --stack-name astra-interior-designer-backend --query 'Stacks[0].Outputs'`.
+CloudWatch logs are in `/astra-interior-designer/backend`.
+CloudFront provides public HTTPS; its restricted ALB origin uses HTTP. Caching is disabled and Authorization/CORS headers are forwarded.
+CloudFront waits up to 120 seconds for the first response or between packets. SSE emits a keep-alive every 15 seconds, and no response-completion cap is configured.
+Session creation still waits for sandbox readiness before responding, so cold provisioning exceeding 120 seconds can produce a CloudFront timeout.
