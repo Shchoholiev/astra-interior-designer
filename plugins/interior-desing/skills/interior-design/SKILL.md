@@ -25,6 +25,7 @@ Read the relevant skill at the stage where it is needed. These are capabilities 
 | Existing asset selection | [find-3d-models](../find-3d-models/SKILL.md) | The chosen source, access, dependencies, and fit are understood; downloaded assets have provenance. |
 | Surface appearance | [cycles-materials](../cycles-materials/SKILL.md) | The intended materials and mapping work in the scene, with required textures readable. |
 | Photographic lighting and output | [light-and-render-interior](../light-and-render-interior/SKILL.md) | A completed, readable image corresponds to the intended scene, camera, and render settings. |
+| Exact viewer-camera image export | [export-viewer-render](../export-viewer-render/SKILL.md) | The requested scene version, world camera, effective vertical FOV, and aspect produce a verified high-resolution PNG with confirmed delivery. |
 | Diagnosis and refinement | [review-interior-render](../review-interior-render/SKILL.md) | The highest-impact defects have evidence, targeted corrections, and comparison renders. |
 
 For reconstruction, settle the room proportions and camera before detailed props. For a design brief, establish a coherent layout and visual direction before decoration. Use simple geometry for early massing and suitable authored assets for complex hero objects. Spend detail where it affects the delivered view.

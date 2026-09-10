@@ -7,6 +7,10 @@ description: Use when lighting a Blender interior, adjusting its photographic ex
 
 Create photographic light relationships and deliver the actual rendered image. Keep a render-only request limited to output: preserve the user's approved lighting, camera, and color management unless a required change is explicitly part of the task.
 
+For a high-resolution image export or a message containing "Viewer camera context
+for this render", use [export-viewer-render](../export-viewer-render/SKILL.md) for
+camera conversion, scene-version checks, and image delivery.
+
 ## Establish the render state
 
 Inspect the open scene through Blender MCP: camera, render engine, visible collections, world and lights, output dimensions, resolution percentage, border/crop, exposure/view transform, sampling, denoising, and device configuration. Identify the previous image and save a scene checkpoint before making a lighting pass.
