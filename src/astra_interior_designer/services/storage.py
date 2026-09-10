@@ -372,6 +372,11 @@ class SignedDownload:
 
 
 @dataclass(frozen=True)
+class SignedRender(SignedDownload):
+    sha256: str
+
+
+@dataclass(frozen=True)
 class SignedUpload:
     object_key: str
     url: str
@@ -463,6 +468,22 @@ class S3Storage:
         if not await self._exists(key):
             return None
         return await asyncio.to_thread(self._sign, "get_object", {"Key": key}, 43_200)
+
+    async def render_url(self, session_id: str) -> SignedRender | None:
+        key = f"{session_prefix(session_id)}render.png"
+        try:
+            metadata = await asyncio.to_thread(
+                self.client.head_object, Bucket=self.bucket_name, Key=key
+            )
+        except ClientError as error:
+            if error.response["Error"]["Code"] in ("404", "NoSuchKey", "NotFound"):
+                return None
+            raise
+        digest = metadata.get("Metadata", {}).get("sha256", "")
+        if not re.fullmatch(r"[0-9a-f]{64}", digest):
+            raise StorageConfigurationError("Render is missing its SHA-256 metadata")
+        signed = await asyncio.to_thread(self._sign, "get_object", {"Key": key}, 43_200)
+        return SignedRender(signed.url, signed.expires_at, digest)
 
     async def upload_url(
         self, session_id: str, filename: str, content_type: str

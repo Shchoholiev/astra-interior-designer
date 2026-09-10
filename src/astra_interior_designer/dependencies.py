@@ -130,6 +130,7 @@ async def build_services(settings: Settings) -> Services:
                                     f"{storage_prefix}inputs/",
                                     f"{storage_prefix}inputs/*",
                                     f"{storage_prefix}scene.glb",
+                                    f"{storage_prefix}render.png",
                                 ]
                             }
                         },
@@ -142,7 +143,10 @@ async def build_services(settings: Settings) -> Services:
                     {
                         "Effect": "Allow",
                         "Action": ["s3:GetObject", "s3:PutObject"],
-                        "Resource": f"{bucket_arn}/{storage_prefix}scene.glb",
+                        "Resource": [
+                            f"{bucket_arn}/{storage_prefix}scene.glb",
+                            f"{bucket_arn}/{storage_prefix}render.png",
+                        ],
                     },
                 ],
             }
