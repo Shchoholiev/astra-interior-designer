@@ -24,6 +24,18 @@ Align grain with each panel's construction and preserve a believable grain width
 
 Keep wood color variation and use roughness variation to break up reflections. Restrict bumps to plausible pore relief. Check veneer transitions and edge treatments in the render; stronger normal maps will not repair an incorrect grain direction.
 
+### Texture scale and repetition on connected furniture parts
+
+Distinguish object proportions, texture aspect distortion, and texture feature size. Inspect the referenced region, transforms, UV extents, and connected mapping first. Keep approved geometry fixed for a texture correction; changing dimensions requires a separately demonstrated geometry defect within the user's scope.
+
+Choose a common visible grain width for parts intended to share one wood or veneer finish. Match direction to construction, such as planar grain on a tabletop, vertical grain on a support, and grain following an edge band. Fitting the complete image independently to each part's bounds makes feature size depend on its shape; the same source file does not ensure matching wood scale.
+
+Control repetition along the grain separately from cross-grain width. Increasing just one mapping axis can squash the source features; uniformly shrinking the entire image into every repeat can make the grain too fine beside neighboring parts. Choose a repeatable source region or authored seamless texture, and repeat that region along the support at the intended physical scale while preserving feature proportions. Numeric repeat counts and coverage values are specific to the source and furniture, not universal defaults.
+
+Keep the related color, roughness, normal, and displacement maps on the same coordinates, crop, and repetition. Preserve intentionally separate detail layers. Follow [mapping checks](mapping.md) for tangent-space normal UVs; inspect mirrored regions for correct directional relief rather than blindly mirroring maps or inverting a normal channel. Check repeat joins and conspicuous duplicated features.
+
+Compare all connected parts together in matching before/after close-ups and the final room framing, with geometry, camera, lighting, and exposure held constant. Judge grain width, direction, contrast, finish, seams, and detail survival after denoising. Successful node checks alone cannot establish that the parts read as the same material.
+
 ## Stone, tile, and plaster
 
 Distinguish a continuous slab from assembled tiles. Choose mapping and source imagery accordingly; inspect the data maps as well as the color for baked joints. Vein scale and aspect ratio should fit the object's dimensions.

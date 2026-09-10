@@ -11,6 +11,8 @@ Create surfaces that fit the intended material, finish, and viewing distance. Di
 
 Use the user's brief, reference, selected objects, and current render to identify the surfaces to change. For a new material, establish its finish and physical scale; for a repair, state the visible defect and likely cause.
 
+When a complaint says the "scale looks wrong," distinguish object proportions from stretched mapping or incorrect texture feature size. Inspect the referenced region and mapping before proposing dimension changes; a grain-scale correction does not authorize resizing furniture.
+
 Control Blender through the available Blender MCP connection. Discover the running Blender version, supported node sockets, and workspace paths. This skill needs native Cycles and local texture access; it has no external renderer dependency. If MCP is unavailable, report the connection issue without launching another Blender process.
 
 For a material-only pass, retain the approved camera, geometry, lights, exposure, and color management. UV edits belong here. If geometry or lighting causes the defect, explain the necessary next step; complete independent material fixes within the requested scope.
