@@ -22,7 +22,7 @@ ASTRA_WEB_TAG="release-$(date -u +%Y%m%dT%H%M%SZ)"
 
 aws ecr get-login-password --region us-east-1 \
   | docker login --username AWS --password-stdin "${ASTRA_WEB_ECR%/*}"
-docker build --platform linux/arm64 \
+docker build --platform linux/arm64 --provenance=false \
   --build-arg NEXT_PUBLIC_ASTRA_BACKEND_ENABLED=true \
   -t "$ASTRA_WEB_ECR:$ASTRA_WEB_TAG" web
 docker push "$ASTRA_WEB_ECR:$ASTRA_WEB_TAG"
