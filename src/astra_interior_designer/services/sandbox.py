@@ -60,10 +60,11 @@ class SandboxService:
         launch_command: tuple[str, ...] = (),
         health_command: tuple[str, ...] = (),
         reconnect_command: tuple[str, ...] = (),
+        sync_inputs_command: tuple[str, ...] = (),
         executor_secret_name: str = "",
         s3_credentials: Callable[[str, str], Awaitable[SandboxCredentials]]
         | None = None,
-        image_name: str = "astra-blender:v1",
+        image_name: str = "astra-blender:v2",
         app_name: str = "astra-interior-designer-blender",
         aws_region: str = "us-east-1",
         remote_url: str = "https://api.openai.com/v1/agents/api",
@@ -74,6 +75,7 @@ class SandboxService:
         self.launch_command = launch_command
         self.health_command = health_command
         self.reconnect_command = reconnect_command
+        self.sync_inputs_command = sync_inputs_command
         self.executor_secret_name = executor_secret_name
         self.s3_credentials = s3_credentials
         self.image_name = image_name
@@ -237,6 +239,40 @@ class SandboxService:
             await self._wait_ready(sandbox)
         finally:
             await sandbox.detach.aio()
+
+    async def sync_inputs(self, sandbox_id: str) -> None:
+        """Wait for the runtime to deliver uploaded inputs before agent submission."""
+        if not self.sync_inputs_command:
+            raise SandboxUnavailable("Configure the input synchronization command")
+        sandbox = None
+        try:
+            async with asyncio.timeout(65):
+                sandbox = await modal.Sandbox.from_id.aio(sandbox_id)
+                process = await sandbox.exec.aio(*self.sync_inputs_command, timeout=60)
+                output, stderr, result = await asyncio.gather(
+                    process.stdout.read.aio(),
+                    process.stderr.read.aio(),
+                    process.wait.aio(),
+                )
+                if (
+                    result == 2
+                    and "argument command: invalid choice: 'sync-inputs'" in stderr
+                ):
+                    # Existing v1 sandboxes retain their background input polling.
+                    return
+                payload = json.loads(output)
+                if (
+                    result != 0
+                    or not isinstance(payload, dict)
+                    or payload.get("ok") is not True
+                ):
+                    raise SandboxUnavailable("Sandbox input synchronization failed")
+        except (TimeoutError, ModalError, ValueError) as exc:
+            raise SandboxUnavailable("Sandbox input synchronization failed") from exc
+        finally:
+            if sandbox is not None:
+                async with asyncio.timeout(5):
+                    await sandbox.detach.aio()
 
     async def _wait_ready(self, sandbox) -> None:
         try:

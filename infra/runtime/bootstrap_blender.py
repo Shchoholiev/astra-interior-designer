@@ -11,7 +11,7 @@ sys.path.insert(0, "/opt/astra/blender-python")
 import bpy  # noqa: E402
 
 # Blender's Python is isolated from the container's boto3 installation.
-STATE = Path("/run/astra/blender-command.json")
+STATE = Path("/run/astra-blender/blender-command.json")
 
 
 def command_state(busy, command=None):

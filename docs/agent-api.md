@@ -15,6 +15,7 @@
 |---|---|
 | `start(session_id, environment_id, remote_url, bucket_name, storage_prefix) -> SandboxHandle` | Provision Modal `RTX-PRO-6000` compute from a prebuilt image containing Blender, its MCP integration, the S3 SDK, and `codex exec-server`. Pass the session's Agents API `remote_url` through unchanged, configure access to `storage_prefix` in the shared bucket, prepare local `/workspace`, launch Blender/MCP and the executor, and make MCP tools callable by the agent. Return `sandbox_id`. |
 | `get(sandbox_id) -> SandboxState` | Report provider state and Blender/MCP health. Provider startup alone does not imply the agent can use the sandbox. |
+| `sync_inputs(sandbox_id) -> None` | Wait for uploaded inputs to reach a running sandbox before submitting an attachment message. |
 | `stop(sandbox_id) -> None` | Internal compute cleanup; safe to repeat if already stopped. Preserve the chat, DB history, and S3 files. |
 | Session orchestration | Persist `session_id`, `environment_id`, `sandbox_id`, and `storage_prefix`. The shared bucket name is backend configuration. Own duplicate-start prevention, Agents API connection readiness, messaging, cancellation, and startup-failure cleanup. Browser disconnection does not cancel work or stop compute. |
 
@@ -36,7 +37,7 @@ Save user input before submission and completed agent/tool items as they arrive.
 | Contract | Responsibility |
 |---|---|
 | Storage | One private bucket. Files under `sandboxes/{session_id}/`; viewer scene at `scene.glb`. Store object keys as permanent references. |
-| Modal | Share only the input files folder and exported `scene.glb` with S3. Keep working Blender files, scripts, and temporary files local. Exports are self-contained GLBs. |
+| Modal | Download new inputs from S3 every two seconds into `/workspace/inputs/`, read-only to Blender and the agent. Confirm attachment downloads before submitting their message. Upload complete, self-contained `scene.glb` exports through the S3 SDK. Working files remain local. |
 | Frontend | Load `scene_url` from the session endpoint in Three.js. Presigned downloads last 12 hours; signing credentials must cover that window. Upload through presigned PUT URLs. |
 | Access | Credentials in backend/Modal secrets. Restrict access to the session's prefix; configure CORS for the frontend. |
 | Persistence | Inputs and uploaded scene exports survive sandbox stops. The local working `.blend` and other unsaved state do not. |
@@ -45,6 +46,6 @@ Save user input before submission and completed agent/tool items as they arrive.
 
 | Sandbox path | S3 location |
 |---|---|
-| `/workspace/inputs/` | `sandboxes/{session_id}/inputs/` |
+| `/workspace/inputs/` (read-only to the agent) | `sandboxes/{session_id}/inputs/` |
 | `/workspace/scene.glb` | `sandboxes/{session_id}/scene.glb` |
 | Working `.blend`, scripts, and temporary files | Local only. |
