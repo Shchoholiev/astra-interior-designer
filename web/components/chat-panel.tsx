@@ -12,6 +12,7 @@ import {
 import { ArrowDown, ArrowUp, Check, ImagePlus, LoaderCircle, Square, TriangleAlert, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { RENDER_VIEW_CONTEXT_MARKER } from "@/lib/render-view";
 
 function AttachmentTile({ removable = false }: { removable?: boolean }) {
   return (
@@ -38,6 +39,16 @@ function ChatMessage() {
         {role === "assistant" && <p className="mb-1 text-[10px] font-bold uppercase tracking-[.12em] text-[#788078]">Astra</p>}
         <MessagePrimitive.Parts>
           {({ part }) => {
+            if (role === "user" && part.type === "text" && part.text.includes(RENDER_VIEW_CONTEXT_MARKER)) {
+              const index = part.text.indexOf(RENDER_VIEW_CONTEXT_MARKER);
+              return <>
+                <p className="whitespace-pre-wrap text-[15px] leading-6">{part.text.slice(0, index).trim()}</p>
+                <details className="mt-3 text-xs">
+                  <summary className="cursor-pointer">Camera and scene details</summary>
+                  <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-all">{part.text.slice(index)}</pre>
+                </details>
+              </>;
+            }
             if (part.type === "text") return <MessagePartPrimitive.Text className="whitespace-pre-wrap text-[15px] leading-6" />;
             if (part.type !== "tool-call") return null;
             const running = part.result === undefined && !part.isError;

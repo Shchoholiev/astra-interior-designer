@@ -30,6 +30,7 @@ import {
 } from "@/lib/astra-api";
 import { AstraAttachmentAdapter } from "@/lib/astra-attachment-adapter";
 import { PrototypeAttachmentAdapter } from "@/lib/prototype-attachment-adapter";
+import { renderViewMessage } from "@/lib/render-view";
 
 const backendEnabled = process.env.NEXT_PUBLIC_ASTRA_BACKEND_ENABLED === "true";
 
@@ -282,7 +283,10 @@ function SessionWorkspace({ initialSession, sessions, onSelectSession, onNewSess
           </ResizablePanel>
           <ResizableHandle withHandle className="bg-[#17221c]" />
           <ResizablePanel defaultSize="66%" minSize="45%">
-            <SceneViewer sceneUrl={sceneUrl} progress={progress} title={initialSession?.title} />
+            <SceneViewer sceneUrl={sceneUrl} progress={progress} title={initialSession?.title} onRenderView={backendEnabled ? (context) => {
+              if (runtime.thread.getState().isRunning) return;
+              runtime.thread.append({ role: "user", content: [{ type: "text", text: renderViewMessage(context) }] });
+            } : undefined} />
           </ResizablePanel>
         </ResizablePanelGroup>
       </main>
