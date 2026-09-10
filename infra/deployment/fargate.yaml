@@ -254,6 +254,7 @@ Resources:
                   - dynamodb:UpdateItem
                   - dynamodb:DeleteItem
                   - dynamodb:Query
+                  - dynamodb:Scan
                 Resource:
                   - arn:aws:dynamodb:us-east-1:022104542793:table/astra-interior-designer-sessions
                   - arn:aws:dynamodb:us-east-1:022104542793:table/astra-interior-designer-messages

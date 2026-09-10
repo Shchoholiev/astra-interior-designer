@@ -20,16 +20,14 @@ proxy, so `ASTRA_API_KEY` is never included in client JavaScript.
 
 - `@assistant-ui/react` for chat messages, composer, attachments, and cancellation
 - React Three Fiber, Drei, and Three.js for GLB rendering, orbit controls, and first-person walking
-- A detailed, Draco-compressed CC0 Classroom GLB at `public/models/classroom.glb`
+- A blank viewer until the selected session has a generated GLB
 - A demo adapter plus a FastAPI adapter for native Agents API SSE events
 - Presigned S3 uploads capped at 25 MB when connected; temporary local uploads in demo mode
-- Session reuse, explicit turn cancellation, Blender tool-status labels, and generated GLB refresh
+- Backend-listed session switching, explicit turn cancellation, Blender tool-status labels, and generated GLB refresh
 
 The API client is in `lib/astra-api.ts`, presigned uploads are implemented in
 `lib/astra-attachment-adapter.ts`, and the authenticated streaming proxy is in
 `app/api/astra/[...path]/route.ts`.
-
-The Classroom source is Christophe Seux's official Blender demo, published under CC0: https://www.blender.org/download/demo-files/
 
 ## Checks
 

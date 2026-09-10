@@ -38,6 +38,15 @@ class CreatedSession(BaseModel):
     session_id: str
 
 
+class SessionSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    session_id: str
+    title: str | None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+
 class SendMessage(BaseModel):
     model_config = ConfigDict(extra="forbid")
     message_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")
@@ -120,6 +129,14 @@ async def create_session(
 ) -> CreatedSession:
     record = await services.sessions.create_session(owner_id=owner_id, title=body.title)
     return CreatedSession(session_id=record.session_id)
+
+
+@router.get("", response_model=list[SessionSummary])
+async def list_sessions(
+    services: ServicesDependency, owner_id: OwnerDependency
+) -> list[SessionSummary]:
+    records = await services.sessions.list_sessions(owner_id=owner_id)
+    return [SessionSummary.model_validate(record) for record in records]
 
 
 @router.get("/{session_id}", response_model=Session)

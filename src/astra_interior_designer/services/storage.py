@@ -161,6 +161,28 @@ class DynamoStorage:
         )
         return _session(response["Item"]) if "Item" in response else None
 
+    async def list_sessions(self, owner_id: str) -> list[SessionRecord]:
+        """List one owner's sessions, newest activity first.
+
+        The current product has one owner and no owner index. Keep this scan behind
+        the storage interface so it can move to a GSI without changing the API.
+        """
+        arguments: dict[str, Any] = {
+            "TableName": self.sessions_table,
+            "FilterExpression": "owner_id = :owner",
+            "ExpressionAttributeValues": {":owner": {"S": owner_id}},
+            "ConsistentRead": True,
+        }
+        records: list[SessionRecord] = []
+        while True:
+            response = await asyncio.to_thread(self.client.scan, **arguments)
+            records.extend(_session(item) for item in response.get("Items", []))
+            key = response.get("LastEvaluatedKey")
+            if not key:
+                break
+            arguments["ExclusiveStartKey"] = key
+        return sorted(records, key=lambda record: record.updated_at, reverse=True)
+
     async def update_session(
         self,
         session_id: str,
