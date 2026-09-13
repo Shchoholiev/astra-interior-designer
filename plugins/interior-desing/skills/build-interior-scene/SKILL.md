@@ -1,11 +1,13 @@
 ---
 name: build-interior-scene
-description: Use when blocking out or assembling a Blender interior, matching room proportions and camera framing to a reference, or importing and placing architectural elements, furniture, plants, and props. Applies to geometry and placement rather than material tuning or final lighting.
+description: Use when building or refining a Blender interior's geometry and placement, including custom furniture, upholstery construction, reference proportions, camera framing, and asset integration. Applies to shape and assembly rather than material tuning or final lighting.
 ---
 
 # Build an interior scene
 
 Build the spatial structure that makes the intended view convincing: room proportions, object silhouettes, contact, and camera framing. Keep the scene editable so later material and lighting passes can target specific components.
+
+At first use in a task, [verify and record the plugin source](../interior-design/references/plugin-source.md); reuse that record across stages.
 
 ## Inspect and block out
 
@@ -20,6 +22,8 @@ Keep the established camera for subsequent comparisons. Change it when compositi
 ## Assemble usable geometry
 
 Use named collections and component objects for architecture, furniture, plants, props, and lights. Preserve logical pivots and parent hierarchies. Reuse data for intentional repeats; isolate it when a local edit must not affect other instances. Stable names and an import record help scripts update existing objects without accumulating duplicates.
+
+For custom furniture, upholstery repairs, or unnatural seating arrangements, read [furniture construction](references/furniture-construction.md). It covers independent shape controls, panel joins, an isolated asset review, and placement relative to the furniture people use together.
 
 Model architectural pieces with credible thickness, softened exposed edges, and contact surfaces. At a continuous wall–ceiling junction, align the meeting surfaces and inspect the evaluated seam: beveling every edge of separate boxes can open an artificial dark groove. Exclude internal contact edges from beveling while retaining appropriate exposed-edge treatment. Preserve intentional reveals, shadow gaps, and trim when specified. [Blender bevel controls](https://docs.blender.org/manual/en/4.4/modeling/modifiers/generate/bevel.html)
 

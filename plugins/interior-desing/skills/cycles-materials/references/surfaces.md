@@ -4,9 +4,15 @@ Read only the relevant material family. Treat parameter choices as hypotheses to
 
 ## Leather and upholstery
 
+Evaluate three scales separately: the overall upholstered form, localized folds at joins or bends, and fine grain or pores. Read [furniture construction](../../build-interior-scene/references/furniture-construction.md) when silhouette, cushion thickness, or seam placement is wrong. Keep a material-only correction within scope; amplifying bump does not repair those shapes.
+
 Start with the imported atlas and normal map when they contain seams, stitching, and folds. Correct packed-map channels and color spaces before adjusting roughness. A smooth bright highlight can come from the coat layer even when base roughness appears high; inspect both contributions.
 
+Match the finish visible in the reference: smooth or pebbled leather, suede, fabric, and coated leather have different appearances. A high-resolution scan can still be the wrong finish. If the source reads as fibers or directional grain instead of the intended leather, inspect the source and mapping before further roughness tuning. Preserve useful authored detail when suitable; choose a better source or calibrated procedural finish when it cannot fit the target.
+
 For a soft leather finish, preserve roughness variation and broaden highlights without erasing the material's sheen. Use coat when the intended leather has a coating; reducing it everywhere would also remove legitimate patent or lacquered finishes. Recolor through the useful atlas detail rather than replacing the entire base color with a flat constant. Fine pore relief should read as a surface texture, not large dents.
+
+Control grain width separately from relief depth. Use coherent physical coverage across the seat, back, and side panels, with aligned color, roughness, and normal detail as described in [mapping checks](mapping.md). Keep larger folds localized to the demonstrated construction and taper them into the surrounding surface; uniform ripples or deep pore relief can make firm leather read as damaged or plush. Check grazing highlights in a close-up and detail survival in the room render after denoising. Values that worked on one chair are not universal leather settings.
 
 For fabric, use the weave direction and a restrained fiber response. Sheen can represent fine fibers, while coat represents a coating; they solve different appearance problems. [Blender Principled BSDF layer documentation](https://docs.blender.org/manual/sr/5.2/render/shader_nodes/shader/principled.html)
 

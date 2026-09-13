@@ -7,6 +7,8 @@ description: Use when lighting a Blender interior, adjusting its photographic ex
 
 Create photographic light relationships and deliver the actual rendered image. Keep a render-only request limited to output: preserve the user's approved lighting, camera, and color management unless a required change is explicitly part of the task.
 
+At first use in a task, [verify and record the plugin source](../interior-design/references/plugin-source.md); reuse that record across stages.
+
 For a high-resolution image export or a message containing "Viewer camera context
 for this render", use [export-viewer-render](../export-viewer-render/SKILL.md) for
 camera conversion, scene-version checks, and image delivery.

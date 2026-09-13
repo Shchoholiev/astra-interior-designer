@@ -16,6 +16,8 @@ A portable Codex plugin for creating and refining Blender interiors with native 
 
 The complete workflow routes to these focused skills as needed. Each focused skill also supports an existing scene without restarting the whole process. Supporting references hold the conditional detail.
 
+Furniture refinement uses the [construction reference](skills/build-interior-scene/references/furniture-construction.md) for independent shape controls, cover joins, isolated asset comparisons, and usable dining-chair placement. Leather finish and grain remain in the material skill.
+
 ## Runtime contract
 
 - Blender with Cycles and a working Blender MCP connection to one persistent process.
@@ -38,6 +40,6 @@ Edited work should produce recoverable native scene checkpoints and inspected im
 
 ## Testing this plugin
 
-When asked to test the plugin, record its source revision, dirty state, and the skill/reference files actually read. If the source changes during the run, identify the instructions used and which changes remain untested.
+Follow [plugin source verification](skills/interior-design/references/plugin-source.md) at task start, including when a focused skill is invoked directly. For a plugin test, include that record with the results. If the source changes during the run, identify the instructions used and which changes remain untested.
 
 Report technical delivery evidence and the final visual assessment separately. Link the inspected images and editable scene; give concrete dominant findings with their outcome and remaining constraints. Distinguish a plugin instruction gap from a task-helper bug, unsupported MCP command, or provider access failure. For each recovery, record what changed and what the next run demonstrated; changing two things together does not establish which one fixed the failure. Label instruction dry runs separately from live Blender execution, and limit conclusions to the tested revision and paths.
