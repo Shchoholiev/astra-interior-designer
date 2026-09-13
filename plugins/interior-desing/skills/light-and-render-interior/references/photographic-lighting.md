@@ -12,6 +12,16 @@ For exterior contribution, inspect windows, glazing, wall thickness, and uninten
 
 When the window is in frame, provide an intentional visible exterior as well as daylight. Follow [window views](../../build-interior-scene/references/window-views.md) for a photographic backdrop plane. Match the photograph's light direction and weather to the room lighting, and check that the card neither blocks daylight nor adds unwanted illumination. Keep an approved camera and light rig stable while verifying the view.
 
+## Trace reflections before changing materials
+
+When metal or glass shows distracting round dots, broad white patches, or reflections that conceal objects, identify the reflected source before treating the shader as the cause. Include off-camera fill lights, emissive geometry, and environment content in the inspection. A highlight's shape can reveal the source shape, but confirm the suspected contributor with a controlled test.
+
+For an authorized diagnostic, temporarily disable or alter one suspected source at a time, retain the camera, material, exposure, and render settings, and compare the affected crop. Restore each rejected test before trying another cause. Record original settings and restore them even if the test fails; diagnostic light states are not accepted scene checkpoints. Follow the [render lifecycle](render-lifecycle.md) and wait until Blender is idle before restoring settings; an MCP timeout alone is not a failed or cancelled render.
+
+In the kitchen refinement, disabling one lateral disk fill removed most distracting dots in the hanging glasses; tests on other lights did not. Replacing that fill with a rectangle of the same emitting area and power improved the reflection shape. This is evidence for tracing a source, not a prescription to replace every disk light. When testing source shape, hold position, orientation, color, power, and emitting area fixed where practical and record unavoidable differences. Shape changes can still alter illumination and shadows, so inspect the entire room before retaining one.
+
+Keep persistent changes within the requested scope. In a material-only pass, report a confirmed lighting limitation and finish the independent material work; do not retain a rig change as an unannounced shader fix. Likewise, hiding reflective objects or weakening glass transparency is not a substitute for diagnosing the light. More samples or another renderer do not establish that the reflection design is correct.
+
 ## Practical fixtures and mixed light
 
 Model the emitting region and its supporting light consistently. A bright visible strip and an extra light can double the intended contribution. Use an additional sampling-friendly source deliberately and check that its reflections and spill do not contradict the fixture.

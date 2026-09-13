@@ -52,11 +52,15 @@ Polished, honed, and rough stone need different reflection spread and relief. Ma
 
 Inspect mesh thickness, normals, overlapping surfaces, and the actual occupied volume before changing the shader. For optical glass, use a native reflective/transmissive surface with a plausible IOR; low alpha or an arbitrary transparent mix is not a substitute for refraction.
 
+Match the shading model to the geometry: a closed shell with inner and outer surfaces needs coherent solid-glass interfaces, while a thin-sheet approximation serves a different representation. Do not apply a thin-surface shortcut merely because the modeled wall is physically thin. Inspect evaluated normals at rims, stems, and profile creases; inappropriate smoothing can distort refraction even when the mesh is closed. Preserve intended smooth curves and deliberate profile transitions instead of marking every edge sharp.
+
 Ordinary clear glass often starts near IOR 1.5 and water near 1.33, with values refined for the intended material. Use depth-dependent absorption for colored glass or liquid where an enclosed volume supports it. Calibrate density to scene scale and thickness; a density copied from another scene can turn a bottle opaque. Keep the container and liquid interfaces coherent.
 
 For a single-sheet approximation, inspect whether the running Blender version supports the intended thin-surface model. Do not invent a socket or treat thin-film interference as a thin-wall setting. If correct appearance needs added thickness, explain that geometry dependency.
 
 For clear windows, keep the optical glazing separate from the outside photograph. Follow [window views](../../build-interior-scene/references/window-views.md) for the exterior card and visibility through transmission; an opaque photo assigned to the pane removes the glass behavior.
+
+When food or decor looks too small or obscured inside a container, separate its geometry from the optical effect. In an authorized diagnostic pass, temporarily hide only the target glass and render the same camera to inspect the contents directly. Record and restore the original visibility before saving an accepted scene or rendering the final, including cleanup after a failed diagnostic. Follow the [render lifecycle](../../light-and-render-interior/references/render-lifecycle.md) and restore only when Blender is idle; an MCP timeout alone does not establish that the render ended. Undersized contents can require a geometry correction rather than a shader change. This diagnostic removes optical effects and is not a final comparison of the glass material. Recheck the restored container and use [reflection diagnosis](../../light-and-render-interior/references/photographic-lighting.md#trace-reflections-before-changing-materials) when a light source is concealing the contents.
 
 ## Leaves and petals
 
@@ -71,3 +75,5 @@ Material work can improve waxiness, flatness, and light transmission. Repeated s
 Distinguish bare metal from paint, ceramic, or plastic. Use metallic response for exposed metal and dielectric response for those nonmetal surfaces; preserve masks separating them on imported assets. Match roughness and any actual coating to the finish.
 
 Check the reflected surroundings before changing a metal's base color to compensate for a dark render. Add fingerprints, scratches, or edge wear only when supported by the brief or reference, at a scale that survives the intended framing.
+
+For distracting dots, bright bands, or mirror-like appliance highlights, use [controlled reflection diagnosis](../../light-and-render-interior/references/photographic-lighting.md#trace-reflections-before-changing-materials) before flattening the finish. Preserve imported masks for plastic grips, painted regions, and exposed metal while tuning a replacement asset. Missing dish thickness or an incorrect appliance opening belongs to [kitchen construction](../../build-interior-scene/references/kitchen-construction.md), not the ceramic or metallic response.

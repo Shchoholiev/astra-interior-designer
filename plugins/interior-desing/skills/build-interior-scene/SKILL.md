@@ -25,6 +25,8 @@ Use named collections and component objects for architecture, furniture, plants,
 
 For custom furniture, upholstery repairs, or unnatural seating arrangements, read [furniture construction](references/furniture-construction.md). It covers independent shape controls, panel joins, an isolated asset review, and placement relative to the furniture people use together.
 
+For backsplashes, built-in appliances, cabinet hardware, or visible tableware, read [kitchen construction](references/kitchen-construction.md). Check installation geometry, intended boundaries, and usable relationships before compensating with surface finish.
+
 Model architectural pieces with credible thickness, softened exposed edges, and contact surfaces. At a continuous wall–ceiling junction, align the meeting surfaces and inspect the evaluated seam: beveling every edge of separate boxes can open an artificial dark groove. Exclude internal contact edges from beveling while retaining appropriate exposed-edge treatment. Preserve intentional reveals, shadow gaps, and trim when specified. [Blender bevel controls](https://docs.blender.org/manual/en/4.4/modeling/modifiers/generate/bevel.html)
 
 For rugs, match pile/backing thickness and the edge profile to the intended textile. A beveled slab with raised border strips can still read as a rigid panel; use a coherent textile edge, including actual binding when present. Inspect floor support and furniture feet after thickness changes, correcting floating or buried contacts. Add fringe, curling, or irregularity only when appropriate to the rug, not as mandatory realism details.

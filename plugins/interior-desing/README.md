@@ -18,6 +18,8 @@ The complete workflow routes to these focused skills as needed. Each focused ski
 
 Furniture refinement uses the [construction reference](skills/build-interior-scene/references/furniture-construction.md) for independent shape controls, cover joins, isolated asset comparisons, and usable dining-chair placement. Leather finish and grain remain in the material skill.
 
+For kitchen details, [construction checks](skills/build-interior-scene/references/kitchen-construction.md) cover backsplash terminations, appliance openings, hardware reach, and tableware profiles. [Asset integration](skills/build-interior-scene/references/asset-integration.md#support-and-assembly-connections) checks actual support and organic connections; the material and lighting references separate glass optics from reflected-source problems.
+
 ## Runtime contract
 
 - Blender with Cycles and a working Blender MCP connection to one persistent process.
