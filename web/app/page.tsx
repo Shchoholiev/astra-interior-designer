@@ -2,14 +2,15 @@
 
 import {
   AssistantRuntimeProvider,
-  type ChatModelAdapter,
+  type ChatModelRunOptions,
+  type ChatModelRunResult,
   type CompleteAttachment,
   type ThreadMessageLike,
   type ToolCallMessagePart,
   useLocalRuntime,
 } from "@assistant-ui/react";
 import { LoaderCircle, Plus, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ChatPanel } from "@/components/chat-panel";
 import { SceneViewer } from "@/components/scene-viewer";
@@ -30,7 +31,7 @@ import {
 import { AstraAttachmentAdapter } from "@/lib/astra-attachment-adapter";
 import { PrototypeAttachmentAdapter } from "@/lib/prototype-attachment-adapter";
 import { renderViewMessage } from "@/lib/render-view";
-import { followTurn, TurnConnectionError } from "@/lib/follow-turn";
+import { followTurn, pendingUserMessage, TurnConnectionError } from "@/lib/follow-turn";
 import { toolPart, TurnTranscript } from "@/lib/turn-transcript";
 
 const backendEnabled = process.env.NEXT_PUBLIC_ASTRA_BACKEND_ENABLED === "true";
@@ -125,18 +126,21 @@ type WorkspaceProps = {
   onSelectSession: (sessionId: string) => void;
   onNewSession: () => void;
   onSessionUpdated: (session: AstraSession) => void;
+  creatingSession: boolean;
+  newSessionError: string | null;
 };
 
-function SessionWorkspace({ initialSession, sessions, onSelectSession, onNewSession, onSessionUpdated }: WorkspaceProps) {
+function SessionWorkspace({ initialSession, sessions, onSelectSession, onNewSession, onSessionUpdated, creatingSession, newSessionError }: WorkspaceProps) {
   const sessionId = initialSession?.session_id ?? null;
-  const [progress, setProgress] = useState<{ label: string } | null>(null);
+  const [resumeMessageId] = useState(() => pendingUserMessage(initialSession)?.message_id ?? null);
+  const [progress, setProgress] = useState<{ label: string } | null>(resumeMessageId ? { label: "Recovering your turn’s progress…" } : null);
   const [sceneUrl, setSceneUrl] = useState<string | null>(initialSession?.scene_url ?? null);
   const [render, setRender] = useState<{ url: string; sha256: string | null } | null>(initialSession?.render_url ? { url: initialSession.render_url, sha256: initialSession.render_sha256 ?? null } : null);
   const api = useMemo(() => new AstraApi(sessionId), [sessionId]);
   const liveAttachments = useMemo(() => new AstraAttachmentAdapter(api), [api]);
 
-  const adapter = useMemo<ChatModelAdapter>(() => ({
-    async *run({ messages, abortSignal }) {
+  const adapter = useMemo(() => ({
+    async *run({ messages, abortSignal, runConfig }: ChatModelRunOptions): AsyncGenerator<ChatModelRunResult> {
       if (!backendEnabled) {
         try {
           for (const label of ["Reading your request", "Planning the layout", "Updating the room", "Exporting the scene"] as const) {
@@ -160,11 +164,12 @@ function SessionWorkspace({ initialSession, sessions, onSelectSession, onNewSess
       let preparation: ToolCallMessagePart | undefined;
       let updated: AstraSession | undefined;
       let terminalStatus = "completed";
-      setProgress({ label: "Starting the design session" });
+      const resuming = runConfig.custom?.resumeOnly === true;
+      setProgress({ label: resuming ? "Recovering your turn’s progress…" : "Starting the design session" });
 
       try {
         for await (const event of followTurn({
-          stream: () => api.sendMessage(messageId, text, attachmentKeys, abortSignal),
+          stream: resuming ? undefined : () => api.sendMessage(messageId, text, attachmentKeys, abortSignal),
           snapshot: () => api.getSession(abortSignal),
           messageId, signal: abortSignal,
         })) {
@@ -248,6 +253,16 @@ function SessionWorkspace({ initialSession, sessions, onSelectSession, onNewSess
     adapters: { attachments: backendEnabled ? liveAttachments : new PrototypeAttachmentAdapter() },
   });
 
+  useEffect(() => {
+    if (!backendEnabled || !resumeMessageId) return;
+    runtime.thread.resumeRun({
+      parentId: resumeMessageId,
+      stream: (options) => adapter.run({ ...options, runConfig: { custom: { resumeOnly: true } } }),
+    });
+    // Leaving a session stops local polling, not the independent backend turn.
+    return () => { runtime.thread.cancelRun(); };
+  }, [runtime, adapter, resumeMessageId]);
+
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <main className="h-dvh bg-[#17221c] p-2 text-[#18231d] md:p-3">
@@ -264,9 +279,10 @@ function SessionWorkspace({ initialSession, sessions, onSelectSession, onNewSess
                     </select>
                   ) : <h1 className="font-serif text-lg leading-tight">Interior designer</h1>}
                 </div>
-                {backendEnabled && <Button onClick={onNewSession} size="icon-sm" variant="outline" className="shrink-0 rounded-full" aria-label="Start a new room"><Plus /></Button>}
+                {backendEnabled && <Button onClick={onNewSession} disabled={creatingSession} size="icon-sm" variant="outline" className="shrink-0 rounded-full" aria-label="Start a new room">{creatingSession ? <LoaderCircle className="animate-spin" /> : <Plus />}</Button>}
                 <span className="rounded-full border border-[#d7cfc2] px-2 py-1 text-[11px] text-[#6f756f]">{backendEnabled ? "Connected" : "Demo"}</span>
               </header>
+              {newSessionError && <p role="alert" className="border-b border-red-200 bg-red-50 px-5 py-3 text-sm text-red-800">{newSessionError}</p>}
               <ChatPanel render={render} onCancel={backendEnabled ? () => { void api.cancel(); } : undefined} />
             </section>
           </ResizablePanel>
@@ -288,6 +304,9 @@ export default function Home() {
   const [session, setSession] = useState<AstraSession | null>(null);
   const [sessions, setSessions] = useState<AstraSessionReference[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [newSessionError, setNewSessionError] = useState<string | null>(null);
+  const [creatingSession, setCreatingSession] = useState(false);
+  const creatingSessionRef = useRef(false);
 
   useEffect(() => {
     if (!backendEnabled) return;
@@ -316,6 +335,7 @@ export default function Home() {
   }, [activeSessionId]);
 
   const selectSession = (sessionId: string) => {
+    setNewSessionError(null);
     if (!sessionId || sessionId === activeSessionId) return;
     AstraApi.selectSession(sessionId);
     setSession(null);
@@ -323,20 +343,27 @@ export default function Home() {
   };
 
   const newSession = async () => {
+    if (creatingSessionRef.current) return;
+    creatingSessionRef.current = true;
+    setCreatingSession(true);
+    setNewSessionError(null);
     try {
       const sessionId = await AstraApi.createSession("New room");
       setSessions(await AstraApi.listSessions());
       setSession(null);
       setActiveSessionId(sessionId);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Unable to create a session.");
+      setNewSessionError(error instanceof Error ? error.message : "Unable to create a session.");
+    } finally {
+      creatingSessionRef.current = false;
+      setCreatingSession(false);
     }
   };
 
-  const updateSession = (updated: AstraSession) => {
+  const updateSession = useCallback((updated: AstraSession) => {
     setSession(updated);
     void AstraApi.listSessions().then(setSessions);
-  };
+  }, []);
 
   if (backendEnabled && (!session || session.session_id !== activeSessionId)) {
     return (
@@ -354,6 +381,8 @@ export default function Home() {
       onSelectSession={selectSession}
       onNewSession={newSession}
       onSessionUpdated={updateSession}
+      creatingSession={creatingSession}
+      newSessionError={newSessionError}
     />
   );
 }

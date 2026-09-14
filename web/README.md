@@ -19,7 +19,7 @@ proxy, so `ASTRA_API_KEY` is never included in client JavaScript.
 ## Included
 
 - `@assistant-ui/react` for chat messages, composer, attachments, and cancellation
-- React Three Fiber, Drei, and Three.js for GLB rendering, orbit controls, and first-person walking
+- React Three Fiber, Drei, and Three.js for GLB rendering and orbit controls
 - A blank viewer until the selected session has a generated GLB
 - A demo adapter plus a FastAPI adapter for native Agents API SSE events
 - Presigned S3 uploads capped at 25 MB when connected; temporary local uploads in demo mode

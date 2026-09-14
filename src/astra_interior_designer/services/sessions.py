@@ -204,11 +204,26 @@ class SessionService:
             "invokes the rendering/export skill. Do not automatically turn layout "
             "creation or edits into rendering work. Preserve an existing scene's "
             "materials and lighting during layout-only edits. "
+            "When the user requests a photorealistic render, explicitly read and "
+            "apply the installed interior-design, build-interior-scene, "
+            "cycles-materials, "
+            "light-and-render-interior, review-interior-render, and "
+            "export-viewer-render skills and their relevant references. "
+            "Refine the layout's placeholder materials, visible surface detail, "
+            "and lighting in a separate native render copy while preserving "
+            "the approved layout and requested camera. Inspect an actual Cycles "
+            "preview and correct prominent realism defects before final export. "
+            "Export helpers alone do not replace the material, lighting, and "
+            "visual review stages. "
             "Use the installed Interior Design "
             "skills and Blender MCP tools to edit scenes. Input files are read-only "
             "local copies in /workspace/inputs; "
             "copy them elsewhere in /workspace if edits are needed. Export a "
-            "self-contained GLB to /workspace/scene.glb for the browser viewer."
+            "self-contained GLB to /workspace/scene.glb for the browser viewer "
+            "with export_lights=False. The viewer supplies its own lighting; "
+            "native render lights must remain in the Blender scene and must "
+            "not be exported as KHR_lights_punctual. Inspect the exported GLB "
+            "to confirm that it contains no punctual lights."
         ),
         readiness_timeout: float = 120,
         poll_interval: float = 1,
@@ -656,6 +671,12 @@ class SessionService:
         try:
             async with asyncio.timeout(self.readiness_timeout):
                 state = await self.sandbox.get(sandbox_id) if sandbox_id else None
+                # A timed-out or concurrent Blender probe is inconclusive. Wait
+                # within the readiness deadline without replacing the workspace.
+                while state is not None and state.status == "unknown":
+                    self._check_lease(record.session_id)
+                    await asyncio.sleep(self.poll_interval)
+                    state = await self.sandbox.get(sandbox_id)
                 if state is None or state.status in {"stopped", "missing"}:
                     live.connected.clear()
                     try:
@@ -687,10 +708,11 @@ class SessionService:
                             "Agents API connection failed"
                         ) from live.error
                     state = await self.sandbox.get(sandbox_id)
-                    if state.status != "running":
+                    if state.status not in {"running", "unknown"}:
                         raise SessionUnavailable("Sandbox health is not confirmed")
                     if (
-                        state.blender_ready
+                        state.status == "running"
+                        and state.blender_ready
                         and state.executor_running
                         and live.connected.is_set()
                     ):
