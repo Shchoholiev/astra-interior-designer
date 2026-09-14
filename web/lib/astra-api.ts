@@ -89,9 +89,12 @@ export class AstraApi {
     return session_id;
   }
 
-  static async listSessions() {
-    const response = await fetch("/api/astra/sessions", { cache: "no-store" });
-    if (!response.ok) throw new Error(await errorMessage(response));
+  static async listSessions(signal?: AbortSignal) {
+    const response = await fetch("/api/astra/sessions", {
+      cache: "no-store",
+      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000),
+    });
+    if (!response.ok) throw new AstraHttpError(await errorMessage(response), response.status);
     return (await response.json()) as AstraSessionReference[];
   }
 
@@ -133,7 +136,8 @@ export class AstraApi {
       const query = new URLSearchParams({ limit: "100" });
       if (cursor) query.set("cursor", cursor);
       const response = await fetch(`/api/astra/sessions/${encodeURIComponent(sessionId)}?${query}`, {
-        cache: "no-store", signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000),
+        // Large retained histories can take over 30 seconds to reconcile.
+        cache: "no-store", signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(60000)]) : AbortSignal.timeout(60000),
       });
       if (!response.ok) throw new AstraHttpError(await errorMessage(response), response.status);
       const page = await response.json() as AstraSession;

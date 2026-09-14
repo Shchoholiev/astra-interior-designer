@@ -31,7 +31,7 @@ import {
 import { AstraAttachmentAdapter } from "@/lib/astra-attachment-adapter";
 import { PrototypeAttachmentAdapter } from "@/lib/prototype-attachment-adapter";
 import { renderViewMessage } from "@/lib/render-view";
-import { followTurn, pendingUserMessage, TurnConnectionError } from "@/lib/follow-turn";
+import { followTurn, pendingUserMessage, retrySessionRead, TurnConnectionError } from "@/lib/follow-turn";
 import { toolPart, TurnTranscript } from "@/lib/turn-transcript";
 
 const backendEnabled = process.env.NEXT_PUBLIC_ASTRA_BACKEND_ENABLED === "true";
@@ -311,17 +311,24 @@ export default function Home() {
   useEffect(() => {
     if (!backendEnabled) return;
     let active = true;
+    const controller = new AbortController();
+    const read = <T,>(operation: () => Promise<T>) => retrySessionRead(
+      operation, controller.signal,
+      () => { if (active) setLoadError("Connection interrupted. Reconnecting to your room…"); },
+    );
     const load = async () => {
-      let available = await AstraApi.listSessions();
+      let available = await read(() => AstraApi.listSessions(controller.signal));
       let sessionId = activeSessionId ?? AstraApi.activeSessionId();
       if (!sessionId || !available.some((item) => item.session_id === sessionId)) {
         sessionId = available[0]?.session_id ?? await AstraApi.createSession("New room");
         if (!available.some((item) => item.session_id === sessionId)) {
-          available = await AstraApi.listSessions();
+          available = await read(() => AstraApi.listSessions(controller.signal));
         }
       }
+      if (!active) return;
       AstraApi.selectSession(sessionId);
-      const loaded = await new AstraApi(sessionId).getSession();
+      const api = new AstraApi(sessionId);
+      const loaded = await read(() => api.getSession(controller.signal));
       if (!active) return;
       setSession(loaded);
       setActiveSessionId(loaded.session_id);
@@ -331,7 +338,7 @@ export default function Home() {
     load().catch((error) => {
       if (active) setLoadError(error instanceof Error ? error.message : "Unable to load the session.");
     });
-    return () => { active = false; };
+    return () => { active = false; controller.abort(); };
   }, [activeSessionId]);
 
   const selectSession = (sessionId: string) => {
