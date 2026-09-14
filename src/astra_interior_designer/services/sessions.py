@@ -11,7 +11,7 @@ from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from openai import APIStatusError, AsyncOpenAI
+from openai import APIConnectionError, APIStatusError, AsyncOpenAI
 from openai.types.beta import AgentSession, AgentSessionEvent, AgentToolParam
 
 from astra_interior_designer.services.storage import (
@@ -508,12 +508,13 @@ class SessionService:
             if old and old.status in _TERMINAL_MESSAGES:
                 await self._release(session_id)
                 return _empty_stream()
-            if info.status == "in_progress" and old is None:
+            active = info.status in {"in_progress", "requires_action"}
+            if active and old is None:
                 raise SessionConflict("Another message is running in this session")
             live = await self._watch_session(record, session)
             if info.status != "in_progress":
                 try:
-                    sandbox_id = await self._ready(record, live)
+                    sandbox_id = await self._ready(record, live, allow_start=not active)
                 except SessionUnavailable as exc:
                     if exc.sandbox_id:
                         try:
@@ -539,7 +540,7 @@ class SessionService:
                                 type(cleanup_error).__name__,
                             )
                     raise
-                if keys and (old is None or old.turn_id is None):
+                if keys and not active and (old is None or old.turn_id is None):
                     try:
                         await self.sandbox.sync_inputs(sandbox_id)
                     except Exception as exc:
@@ -565,7 +566,7 @@ class SessionService:
             live.terminal = None
             subscriber = self._subscribe(live)
             await self.store.update_session(session_id, status="in_progress")
-            if info.status != "in_progress" and old.turn_id is None:
+            if not active and old.turn_id is None:
                 content = self._input_text(text, keys)
                 submit_attempted = True
                 await session.send_input(content, idempotency_key=message_id)
@@ -644,28 +645,58 @@ class SessionService:
         return live
 
     async def _watch(self, record: SessionRecord, live: _LiveSession) -> None:
-        try:
-            events = await self.sdk.beta.agents.sessions.events.stream(
-                record.session_id
-            )
-            live.opened.set()
-            async with events:
-                async for event in events:
-                    await self._event(record, live, event)
-            raise SessionUnavailable("Upstream event stream ended")
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:
-            live.error = exc
-            live.connected.clear()
-            live.opened.set()
-            self._end_subscribers(live)
-            # The separate recovery worker keeps persisting retained results.
-            log.warning(
-                "Agents API stream interrupted for session %s", record.session_id
-            )
+        delay = 1
+        while not self._closed:
+            try:
+                events = await self.sdk.beta.agents.sessions.events.stream(
+                    record.session_id
+                )
+                live.opened.set()
+                async with events:
+                    async for event in events:
+                        await self._event(record, live, event)
+                        delay = 1
+                raise SessionUnavailable("Upstream event stream ended")
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                live.connected.clear()
+                if (
+                    isinstance(exc, APIStatusError)
+                    and 400 <= exc.status_code < 500
+                    and exc.status_code not in {408, 409, 429}
+                ):
+                    live.error = exc
+                    live.opened.set()
+                    self._end_subscribers(live)
+                    return
+                # Keep the same producer, request and subscribers. Retained-item
+                # recovery fills gaps; reopening a stream never resubmits input.
+                live.opened.clear()
+                log.warning(
+                    "Agents API stream interrupted for %s; reconnecting in %ss",
+                    record.session_id,
+                    delay,
+                )
+                await asyncio.sleep(delay)
+                delay = min(delay * 2, 30)
 
-    async def _ready(self, record: SessionRecord, live: _LiveSession) -> str:
+    async def _connection_state(
+        self, record: SessionRecord, live: _LiveSession
+    ) -> bool:
+        environment = await self.sdk.beta.agents.environments.retrieve(
+            record.environment_id
+        )
+        connected = environment.status == "connected"
+        if connected:
+            live.connected.set()
+        else:
+            live.connected.clear()
+        return connected
+
+    async def _ready(
+        self, record: SessionRecord, live: _LiveSession, *, allow_start: bool = True
+    ) -> str:
         sandbox_id = record.sandbox_id
         started_id = None
         try:
@@ -678,6 +709,10 @@ class SessionService:
                     await asyncio.sleep(self.poll_interval)
                     state = await self.sandbox.get(sandbox_id)
                 if state is None or state.status in {"stopped", "missing"}:
+                    if not allow_start:
+                        raise SessionUnavailable(
+                            "Active Blender workspace is unavailable"
+                        )
                     live.connected.clear()
                     try:
                         handle = await self.sandbox.start(
@@ -697,9 +732,13 @@ class SessionService:
                     await self.store.update_session(
                         record.session_id, sandbox_id=sandbox_id
                     )
-                elif state.status != "running":
+                elif state.status != "running" and not (
+                    state.blender_ready and not state.executor_running
+                ):
                     raise SessionUnavailable("Existing sandbox health is not confirmed")
-                elif not live.connected.is_set():
+                elif not state.executor_running or not await self._connection_state(
+                    record, live
+                ):
                     await self.sandbox.reconnect_executor(sandbox_id)
                 while True:
                     self._check_lease(record.session_id)
@@ -708,8 +747,14 @@ class SessionService:
                             "Agents API connection failed"
                         ) from live.error
                     state = await self.sandbox.get(sandbox_id)
-                    if state.status not in {"running", "unknown"}:
+                    if state.status not in {"running", "unknown"} and not (
+                        state.blender_ready and not state.executor_running
+                    ):
                         raise SessionUnavailable("Sandbox health is not confirmed")
+                    if not live.connected.is_set():
+                        # A live event is not a durable connection receipt: it
+                        # may precede subscription or be lost during reconnect.
+                        await self._connection_state(record, live)
                     if (
                         state.status == "running"
                         and state.blender_ready
@@ -913,6 +958,16 @@ class SessionService:
                     return
                 turn = await self._message_turn(live.session, message)
                 info = await live.session.retrieve()
+                if info.status in {"in_progress", "requires_action"} and (
+                    not live.connected.is_set()
+                    or any(
+                        action.type == "environment_connection"
+                        for action in (getattr(info, "required_actions", None) or [])
+                    )
+                ):
+                    if not await self._connection_state(record, live):
+                        current = await self.store.get_session(record.session_id)
+                        await self._ready(current, live, allow_start=False)
                 if (
                     turn
                     and turn.status in _TERMINAL_MESSAGES
@@ -940,13 +995,28 @@ class SessionService:
                 failures = 0
             except asyncio.CancelledError:
                 raise
-            except Exception:
+            except Exception as exc:
                 failures += 1
                 log.warning(
-                    "Retained-output recovery interrupted for %s", record.session_id
+                    "Retained-output recovery interrupted for %s (%s)",
+                    record.session_id,
+                    type(exc).__name__,
                 )
-                if failures < 3:
-                    live.retry_delay = 2 ** (failures - 1)
+                transient = any(
+                    isinstance(error, (APIConnectionError, TimeoutError))
+                    or (
+                        isinstance(error, APIStatusError)
+                        and (
+                            error.status_code >= 500
+                            or error.status_code in {408, 409, 429}
+                        )
+                    )
+                    for error in (exc, exc.__cause__)
+                )
+                if failures < 3 or transient:
+                    # A network outage must not discard the active request and
+                    # disable persistence when the event stream recovers later.
+                    live.retry_delay = min(2 ** min(failures - 1, 5), 30)
                     continue
                 # Preserve pending metadata for GET or a later idempotent retry.
                 live.message = None
