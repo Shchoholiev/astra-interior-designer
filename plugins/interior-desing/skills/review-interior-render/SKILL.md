@@ -7,9 +7,13 @@ description: Use when judging an interior render against a reference or earlier 
 
 Inspect the image that was actually produced, identify the dominant visual problems, and connect each proposed correction to evidence. Shader complexity, polygon counts, and a successful render status are not measures of visual improvement.
 
+At first use in a task, [verify and record the plugin source](../interior-design/references/plugin-source.md); reuse that record across stages.
+
 ## Establish a fair comparison
 
 Open the latest completed image, the reference or brief, and the previous accepted pass when available. Inspect both the full composition and relevant detail crops. Read the corresponding scene/render record so the image is tied to a known camera and revision.
+
+For furniture refinements, record the requested change and the features the user already accepted. Compare the disputed profile, corner, panel join, or placement directly against the reference; a better-looking shader does not establish that its construction matches. Use the relevant views in [furniture construction](../build-interior-scene/references/furniture-construction.md), retaining labeled rejected and corrected crops when available. Check all updated repeats in the room after an isolated asset review, including the accepted features that must survive the edit.
 
 Check framing, resolution/crop, exposure, view transform, and denoising differences before drawing a before/after conclusion. If they differ, describe the confounders. For an authorized improvement task, establish a comparison under the chosen common settings before attributing a change to materials. Do not silently reinterpret a linear image as a display-ready PNG.
 

@@ -7,6 +7,8 @@ description: Use when creating or repairing Blender Cycles materials for interio
 
 Create surfaces that fit the intended material, finish, and viewing distance. Diagnose the existing shader and mapping before replacing them. A plausible material cannot repair an incorrect silhouette or missing upholstery folds.
 
+At first use in a task, [verify and record the plugin source](../interior-design/references/plugin-source.md); reuse that record across stages.
+
 ## Establish the target
 
 Use the user's brief, reference, selected objects, and current render to identify the surfaces to change. For a new material, establish its finish and physical scale; for a repair, state the visible defect and likely cause.

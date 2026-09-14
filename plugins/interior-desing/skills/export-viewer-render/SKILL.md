@@ -10,6 +10,8 @@ Preserve geometry, materials, lighting, and color management. Camera context is
 an exact projection contract; do not replace it with a similar-looking camera,
 auto-frame the room, level the horizon, or improve the composition.
 
+At first use in a task, [verify and record the plugin source](../interior-design/references/plugin-source.md); reuse that record across stages.
+
 If no viewer context is supplied, use the approved scene camera and current native
 checkpoint, skip the viewer conversion steps below, and continue with rendering
 and delivery. Do not invent viewer coordinates or request them unnecessarily.

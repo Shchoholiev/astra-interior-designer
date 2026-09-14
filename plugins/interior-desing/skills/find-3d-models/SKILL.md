@@ -7,6 +7,8 @@ description: Use when a user wants to find, compare, or download an existing 3D 
 
 Find an existing, downloadable model that fits the requested object and its intended use. Default to free assets and realistic materials; preserve the user's explicit style, budget, provider, and format choices.
 
+At first use in a task, [verify and record the plugin source](../interior-design/references/plugin-source.md); reuse that record across stages.
+
 ## Understand the object
 
 Extract the object category, silhouette, material, color, style, scale, and intended renderer from the request or reference image. Use the current task's constraints; ask only about missing information that would change selection. Search short object nouns and synonyms separately (for example, “bar stool”, “counter stool”, “stool”). Treat color as adjustable when a material change can satisfy the request; keep distinctive geometry as a stronger constraint.

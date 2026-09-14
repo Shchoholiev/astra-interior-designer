@@ -7,6 +7,8 @@ description: Use when creating and rendering a complete interior from a referenc
 
 Carry the user's interior task through an editable Blender scene and inspected Cycles images. Work from the current stage; an existing scene does not need to be rebuilt to improve it.
 
+At first use in a task, [verify and record the plugin source](references/plugin-source.md); reuse that record across stages.
+
 ## Establish the brief and protect the starting point
 
 Inspect the supplied images, existing scene, and prior results. Identify room function, must-match features, style, dimensions, camera/composition constraints, asset budget, and requested outputs. Distinguish observed facts from estimated dimensions and unseen architecture. Ask only for missing information that materially prevents progress; proceed with stated assumptions for ordinary visual choices.
