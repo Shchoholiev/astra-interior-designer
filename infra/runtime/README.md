@@ -1,7 +1,7 @@
 # Production sandbox runtime
 
 `image.py` extends the tested tooling image
-`im-ELY2dohC6fxZVS7MuAnm3x` and publishes `astra-blender:v9`. The base contains
+`im-ELY2dohC6fxZVS7MuAnm3x` and publishes `astra-blender:v10`. The base contains
 Blender 5.2.1, Blender MCP 1.9.1, Codex CLI 0.153.4, Xvfb and the render/native-save
 helpers and Pillow 12.1.1 from `infra/modal_local/`. This layer adds boto3 1.43.91 and the existing
 S3/executor supervisor, plus the complete `plugins/interior-desing` plugin at
@@ -9,7 +9,7 @@ S3/executor supervisor, plus the complete `plugins/interior-desing` plugin at
 through `environment.capability_directories`; the manifest, seven skills, and their
 references are baked into the image with `copy=True`. Plugin updates require a
 new image build. No scene, texture or model is bundled. No packages install at startup.
-Version 9 automatically restarts an exited executor with capped backoff while preserving Blender, Xvfb, storage synchronization and the native workspace. Version 8 adds plugin 0.3.3 with fixture-connection, enclosure-gap, and final visual-acceptance checks. Version 7 adds plugin 0.3.2 with construction, source verification, and lived-in styling guidance. Version 6 includes the viewer-camera export skill and its camera/delivery helpers.
+Version 10 adds plugin 0.3.4 with camera-visible enclosure verification for photographic views. Version 9 automatically restarts an exited executor with capped backoff while preserving Blender, Xvfb, storage synchronization and the native workspace. Version 8 adds plugin 0.3.3 with fixture-connection, enclosure-gap, and final visual-acceptance checks. Version 7 adds plugin 0.3.2 with construction, source verification, and lived-in styling guidance. Version 6 includes the viewer-camera export skill and its camera/delivery helpers.
 
 Build from the repository root with the environment containing Modal 1.5.5:
 
@@ -29,7 +29,7 @@ app = modal.App.lookup("astra-interior-designer-blender", create_if_missing=True
 image = production_image().build(app)
 # Run the live session, storage, busy-health and reconnect checks using image.
 # After they pass, publish this exact built image:
-image.publish("astra-blender:v9")
+image.publish("astra-blender:v10")
 ```
 
 `python infra/runtime/image.py --publish` performs the build and publication in
