@@ -978,15 +978,19 @@ class SessionService:
                 message = live.message
                 if message is None:
                     return
-                turn = await self._message_turn(live.session, message)
+                try:
+                    turn = await self._message_turn(live.session, message)
+                except APIStatusError as exc:
+                    if exc.status_code != 404 or message.turn_id is None:
+                        raise
+                    # Retained turn metadata can lag the live executor. A missing
+                    # known turn is not proof of completion or failed submission.
+                    turn = None
                 info = await live.session.retrieve()
-                if info.status in {"in_progress", "requires_action"} and (
-                    not live.connected.is_set()
-                    or any(
-                        action.type == "environment_connection"
-                        for action in (getattr(info, "required_actions", None) or [])
-                    )
-                ):
+                if turn is None or turn.status not in _TERMINAL_MESSAGES:
+                    # Disconnection events may be missed, and session status may
+                    # still say idle after accepted input. Check the environment
+                    # while this persisted request has no confirmed completion.
                     if not await self._connection_state(record, live):
                         current = await self.store.get_session(record.session_id)
                         await self._ready(
@@ -1002,6 +1006,7 @@ class SessionService:
                     return
                 if (
                     turn is None
+                    and message.turn_id is None
                     and info.status == "idle"
                     and message.status == "pending"
                 ):
