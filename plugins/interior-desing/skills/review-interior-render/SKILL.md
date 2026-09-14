@@ -51,7 +51,7 @@ Record two separate outcomes in the final review: **technical delivery** (valid 
 
 | Check | Evidence to record |
 | --- | --- |
-| Enclosure and light paths | Visible wall/ceiling junctions and corners; any unexplained bright wedge or open seam and its confirmed cause. |
+| Enclosure and light paths | Visible wall/ceiling junctions and corners; confirm that large apparent enclosure regions are camera-visible geometry, not a flat world background. Record any unexplained bright wedge, open seam, or unsupported fixture and its confirmed cause. |
 | Installed assemblies | For prominent plumbing, extraction and appliances, trace the connected parts, support, intended openings and clearance from adjacent surfaces. Name the inspected crop or diagnostic view. |
 | Photographic plausibility | Identify the largest remaining synthetic cue in the actual image: silhouette, material response, textile thickness, repeated primitive props, scale or lighting. Correct it within scope, then compare the same region. |
 
