@@ -439,13 +439,25 @@ class SessionService:
                 await self._acquire(session_id)
             except SessionConflict:
                 return record
+            recovering = False
             try:
                 session = (
                     live.session if live else await self._retrieve_session(session_id)
                 )
-                await self._reconcile(record, session)
+                pending = await self._reconcile(record, session)
+                if pending and not self._closed:
+                    # Browser resume polls snapshots, without another POST. Adopt
+                    # the persisted request under this lease after a worker loss.
+                    live = await self._watch_session(record, session)
+                    live.message = max(pending, key=lambda message: message.created_at)
+                    live.terminal = None
+                    live.recovery = asyncio.create_task(
+                        self._recover_while_active(record, live)
+                    )
+                    recovering = True
             finally:
-                await self._release(session_id)
+                if not recovering:
+                    await self._release(session_id)
         return await self._owned(session_id, owner_id)
 
     async def list_sessions(self, *, owner_id: str) -> list[SessionRecord]:
@@ -514,7 +526,11 @@ class SessionService:
             live = await self._watch_session(record, session)
             if info.status != "in_progress":
                 try:
-                    sandbox_id = await self._ready(record, live, allow_start=not active)
+                    sandbox_id = await self._ready(
+                        record,
+                        live,
+                        allow_start=record.persistent_workspace or not active,
+                    )
                 except SessionUnavailable as exc:
                     if exc.sandbox_id:
                         try:
@@ -711,7 +727,7 @@ class SessionService:
                 if state is None or state.status in {"stopped", "missing"}:
                     if not allow_start:
                         raise SessionUnavailable(
-                            "Active Blender workspace is unavailable"
+                            "Legacy active workspace needs restoration"
                         )
                     live.connected.clear()
                     try:
@@ -730,7 +746,9 @@ class SessionService:
                         raise
                     sandbox_id = started_id = handle.sandbox_id
                     await self.store.update_session(
-                        record.session_id, sandbox_id=sandbox_id
+                        record.session_id,
+                        sandbox_id=sandbox_id,
+                        persistent_workspace=True,
                     )
                 elif state.status != "running" and not (
                     state.blender_ready and not state.executor_running
@@ -921,6 +939,7 @@ class SessionService:
         info = await session.retrieve()
         if record.status not in {"starting", "failed"}:
             await self.store.update_session(record.session_id, status=info.status)
+        pending = []
         for message in messages.values():
             if message.role == "user" and message.status not in _TERMINAL_MESSAGES:
                 turn = await self._message_turn(session, message)
@@ -928,6 +947,9 @@ class SessionService:
                     await self.store.upsert_message(
                         replace(message, status=turn.status, turn_id=turn.id)
                     )
+                else:
+                    pending.append(message)
+        return pending
 
     async def _message_turn(self, session, message):
         if message.turn_id:
@@ -967,7 +989,9 @@ class SessionService:
                 ):
                     if not await self._connection_state(record, live):
                         current = await self.store.get_session(record.session_id)
-                        await self._ready(current, live, allow_start=False)
+                        await self._ready(
+                            current, live, allow_start=current.persistent_workspace
+                        )
                 if (
                     turn
                     and turn.status in _TERMINAL_MESSAGES

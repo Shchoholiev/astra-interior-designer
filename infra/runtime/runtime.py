@@ -2,6 +2,7 @@
 
 import argparse
 import contextlib
+import errno
 import fcntl
 import hashlib
 import json
@@ -121,6 +122,29 @@ def prepare_directory(path, mode, *, uid=0, gid=0):
         os.fchmod(descriptor, mode)
     finally:
         os.close(descriptor)
+
+
+def install_workspace_instructions(workspace, content):
+    """Install current image guidance after mounting the persistent workspace."""
+    with destination_parent(workspace, "AGENTS.md") as (parent, name):
+        temporary = f".astra-instructions-{uuid.uuid4().hex}"
+        descriptor = os.open(
+            temporary,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            0o644,
+            dir_fd=parent,
+        )
+        try:
+            with os.fdopen(descriptor, "wb") as output:
+                output.write(content)
+                output.flush()
+                os.fsync(output.fileno())
+            os.replace(temporary, name, src_dir_fd=parent, dst_dir_fd=parent)
+        finally:
+            try:
+                os.unlink(temporary, dir_fd=parent)
+            except FileNotFoundError:
+                pass
 
 
 def valid_glb(stream):
@@ -283,6 +307,22 @@ class WorkspaceSync:
         prepare_directory(self.config.workspace, 0o1777)
         prepare_directory(self.config.workspace / "inputs", 0o755)
         self.sync_inputs()
+        local = self.config.workspace / "scene.glb"
+        try:
+            descriptor = os.open(local, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        except FileNotFoundError:
+            pass
+        except OSError as error:
+            if error.errno == errno.ELOOP:
+                raise ValueError("Persisted scene must not be a symlink") from error
+            raise
+        else:
+            with os.fdopen(descriptor, "rb") as source:
+                if not stat.S_ISREG(os.fstat(source.fileno()).st_mode):
+                    raise ValueError("Persisted scene must be a regular file")
+                if valid_glb(source):
+                    # The volume may contain a newer export than the S3 mirror.
+                    return
         key = self.config.prefix + "scene.glb"
         # A prefix-constrained ListBucket grant can list this exact key without
         # relying on HEAD's ambiguous 403 response for an absent initial scene.
@@ -634,6 +674,10 @@ class Supervisor:
                 storage_thread = None
                 try:
                     self.sync.restore()
+                    install_workspace_instructions(
+                        self.config.workspace,
+                        Path("/opt/astra/workspace-AGENTS.md").read_bytes(),
+                    )
                     self.spawn(
                         "xvfb",
                         [
