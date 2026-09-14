@@ -32,6 +32,8 @@ Read the relevant skill at the stage where it is needed. These are capabilities 
 
 For reconstruction, settle the room proportions and camera before detailed props. For a design brief, establish a coherent layout and visual direction before decoration. Use simple geometry for early massing and suitable authored assets for complex hero objects. Spend detail where it affects the delivered view.
 
+For a finished residential design, include a [lived-in styling pass](../build-interior-scene/references/interior-styling.md) after the layout is established. Plan purposeful signs of daily use and coherent decorative groups, then verify their placement and the full composition. Respect explicit empty/minimal styling and requests limited to layout or unchanged-scene export.
+
 Keep a short local progress record containing the current scene/checkpoint, reference paths, camera and estimated scale, asset sources, last completed image, and next unresolved issue. This lets work resume without repeating earlier passes. Discover output paths from the workspace rather than hard-coding a particular machine or fixture.
 
 ## Refine with controlled comparisons

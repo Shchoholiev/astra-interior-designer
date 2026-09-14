@@ -21,6 +21,8 @@ When images cannot be opened, report the review as limited to scene/settings evi
 
 ## Diagnose before editing
 
+For finished residential work, assess whether the room feels usable and inhabited at the density requested. Inspect functional groups, decorative context, and clear working/circulation space using [interior styling](../build-interior-scene/references/interior-styling.md). Missing styling is a composition finding even when shaders and lighting are technically correct; preserve intentionally empty or minimal briefs.
+
 Read [diagnosis guide](references/diagnosis.md) for symptom-driven checks. Separate observations from hypotheses. Confirm likely causes through targeted Blender MCP inspection, source-image inspection, or a small controlled render.
 
 Rank the few defects that most affect the user's goal by their screen area, visual prominence, and mismatch to the reference. A dominant wrong silhouette can matter more than a small texture flaw. Within a material-only request, report geometry or lighting limits while keeping edits in scope.

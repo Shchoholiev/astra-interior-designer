@@ -4,6 +4,7 @@ Use these as hypotheses to test, not a list of automatic edits. Inspect actual r
 
 | Visible symptom | Inspect first | Correction when confirmed |
 | --- | --- | --- |
+| Finished kitchen feels empty or like a showroom | Brief/reference density, visible daily activities, bare table/worktop/walls, coherent grouping and usable clear areas | Plan and build in-scope [lived-in styling](../../build-interior-scene/references/interior-styling.md), then compare the full camera image and verify support and circulation. Preserve deliberately bare designs. |
 | Room feels wrong despite detailed props | Camera height/lens, major dimensions, overlaps and negative spaces | Correct composition or the dominant geometry before adding detail. |
 | Chair or flower still looks fabricated | Silhouette, repeated forms, cushion thickness, petal/leaf construction, shading normals | Improve the geometry or use a suitable asset when in scope; surface noise cannot change silhouette. |
 | Upholstery looks plush, its back is flat, or the seat is too arched or thin | Back lean versus curvature, seat top versus underside profile, thickness at multiple sections, evaluated corner radii | Adjust the demonstrated [shape control](../../build-interior-scene/references/furniture-construction.md#separate-the-shape-controls) while preserving approved features; compare side and three-quarter views. |

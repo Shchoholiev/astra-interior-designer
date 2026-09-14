@@ -39,6 +39,8 @@ Give visible clear windows an intentional outside view. For a fixed interior cam
 
 ## Verify the assembled scene
 
+For a finished residential room or a sparse, uninhabited-looking kitchen, read [lived-in interior styling](references/interior-styling.md). Record the visible activity zones, chosen groups, and surfaces to keep clear; build and review that layer before treating the furnished room as complete.
+
 Check the final camera and at least one diagnostic view for floating feet, intersecting furniture, wall penetrations, incorrect plant scale, duplicated objects, and hidden render geometry. Compare large negative spaces and occlusions before adding small decorative props. Keep plausible circulation for a design brief; do not claim dimensions inferred from a photograph are construction measurements.
 
 Save an editable scene checkpoint and a composition preview. Report the chosen units/scale, camera, imported assets, approximations, and any geometry limits that a shader cannot solve. Hand surface defects to [cycles-materials](../cycles-materials/SKILL.md) and photographic output to [light-and-render-interior](../light-and-render-interior/SKILL.md) only when those stages belong to the current task.

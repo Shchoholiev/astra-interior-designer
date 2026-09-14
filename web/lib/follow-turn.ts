@@ -2,6 +2,11 @@ import type { AstraEvent, AstraSession } from "./astra-api";
 
 export class TurnConnectionError extends Error {}
 
+export function pendingUserMessage(session: Pick<AstraSession, "messages"> | null) {
+  const latest = session?.messages.findLast((message) => message.role === "user");
+  return latest && ["pending", "submitted"].includes(latest.status) ? latest : null;
+}
+
 export function waitForRetry(ms: number, signal: AbortSignal) {
   return new Promise<void>((resolve, reject) => {
     if (signal.aborted) { reject(signal.reason); return; }
@@ -12,7 +17,8 @@ export function waitForRetry(ms: number, signal: AbortSignal) {
 }
 
 export async function* followTurn({ stream, snapshot, messageId, signal, wait = waitForRetry }: {
-  stream: () => AsyncIterable<AstraEvent>;
+  // Omit the stream when reopening an existing turn: recovery must never submit.
+  stream?: () => AsyncIterable<AstraEvent>;
   snapshot: () => Promise<AstraSession>;
   messageId: string;
   signal: AbortSignal;
@@ -23,7 +29,7 @@ export async function* followTurn({ stream, snapshot, messageId, signal, wait = 
     let streamError: Error | null = null;
     let backendError = false;
     try {
-      for await (const event of stream()) {
+      for await (const event of stream?.() ?? []) {
         if (event.event === "astra.error") {
           backendError = true;
           throw new Error(typeof event.data.detail === "string" ? event.data.detail : "The backend could not continue the turn.");
@@ -60,10 +66,11 @@ export async function* followTurn({ stream, snapshot, messageId, signal, wait = 
       if (message) {
         // A submitted turn is independent of its SSE connection. Follow the
         // persisted turn; do not send another generation or trust sandbox uptime.
-        yield { event: "astra.recovering", data: { label: "Live stream disconnected. Following the turn’s saved progress…" } };
+        yield { event: "astra.recovering", data: { label: stream ? "Live stream disconnected. Following the turn’s saved progress…" : "Following the turn’s saved progress…" } };
       } else if (backendError) {
         throw streamError ?? new Error("The backend could not start the turn.");
       } else if (++missing >= 3) {
+        if (!stream) throw new TurnConnectionError("The saved turn could not be found. Refresh this session to check its status; no new request or cancellation was sent.");
         if (++submissionAttempts >= 3) throw new TurnConnectionError("Connection lost before submission could be confirmed. Refresh this session to check its status; no cancellation was sent.");
         // Acceptance is uncertain. The caller must reuse the exact message ID,
         // text and attachments so the backend's idempotency guard is preserved.

@@ -20,6 +20,8 @@ Furniture refinement uses the [construction reference](skills/build-interior-sce
 
 For kitchen details, [construction checks](skills/build-interior-scene/references/kitchen-construction.md) cover backsplash terminations, appliance openings, hardware reach, and tableware profiles. [Asset integration](skills/build-interior-scene/references/asset-integration.md#support-and-assembly-connections) checks actual support and organic connections; the material and lighting references separate glass optics from reflected-source problems.
 
+Finished residential designs include a [lived-in styling pass](skills/build-interior-scene/references/interior-styling.md): coherent functional objects and decor, usable clear surfaces, and an inspected composition matched to the brief.
+
 ## Runtime contract
 
 - Blender with Cycles and a working Blender MCP connection to one persistent process.
