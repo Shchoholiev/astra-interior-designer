@@ -953,7 +953,14 @@ class SessionService:
 
     async def _message_turn(self, session, message):
         if message.turn_id:
-            return await session.retrieve_turn(message.turn_id)
+            try:
+                return await session.retrieve_turn(message.turn_id)
+            except APIStatusError as exc:
+                if exc.status_code != 404:
+                    raise
+                # Retained turn metadata can lag live execution, including when
+                # a replacement backend adopts the persisted request from GET.
+                return None
         previous = message.previous_turn_id
         page = await session.list_turns(limit=100, order="desc")
         candidates = []
@@ -980,13 +987,15 @@ class SessionService:
                     return
                 turn = await self._message_turn(live.session, message)
                 info = await live.session.retrieve()
-                if info.status in {"in_progress", "requires_action"} and (
-                    not live.connected.is_set()
-                    or any(
-                        action.type == "environment_connection"
-                        for action in (getattr(info, "required_actions", None) or [])
-                    )
+                if live.terminal is not None and info.status != "in_progress":
+                    await self._finish(record, live, live.terminal)
+                    return
+                if live.terminal is None and (
+                    turn is None or turn.status not in _TERMINAL_MESSAGES
                 ):
+                    # Disconnection events may be missed, and session status may
+                    # still say idle after accepted input. Check the environment
+                    # while this persisted request has no confirmed completion.
                     if not await self._connection_state(record, live):
                         current = await self.store.get_session(record.session_id)
                         await self._ready(
@@ -1002,6 +1011,7 @@ class SessionService:
                     return
                 if (
                     turn is None
+                    and message.turn_id is None
                     and info.status == "idle"
                     and message.status == "pending"
                 ):
