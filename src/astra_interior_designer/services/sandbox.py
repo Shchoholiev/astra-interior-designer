@@ -8,6 +8,7 @@ orchestration waits for that separately.
 """
 
 import asyncio
+import hashlib
 import json
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -64,7 +65,7 @@ class SandboxService:
         executor_secret_name: str = "",
         s3_credentials: Callable[[str, str], Awaitable[SandboxCredentials]]
         | None = None,
-        image_name: str = "astra-blender:v7",
+        image_name: str = "astra-blender:v11",
         app_name: str = "astra-interior-designer-blender",
         aws_region: str = "us-east-1",
         remote_url: str = "https://api.openai.com/v1/agents/api",
@@ -132,6 +133,14 @@ class SandboxService:
             raise SandboxUnavailable("S3 credentials expire too soon to start compute")
 
         app = await modal.App.lookup.aio(self.app_name, create_if_missing=True)
+        # A replacement executor needs native scenes, textures and render copies,
+        # not only the viewer GLB mirrored to S3. Keep each session isolated.
+        workspace_key = hashlib.sha256(
+            f"{bucket_name}/{storage_prefix}".encode()
+        ).hexdigest()[:32]
+        workspace = modal.Volume.from_name(
+            f"astra-workspace-{workspace_key}", create_if_missing=True
+        )
         create = asyncio.create_task(
             modal.Sandbox.create.aio(
                 *self.launch_command,
@@ -142,6 +151,7 @@ class SandboxService:
                 memory=16384,
                 timeout=timeout,
                 workdir="/workspace",
+                volumes={"/workspace": workspace},
                 tags={"project": "astra-interior-designer", "session_id": session_id},
                 env={
                     "SESSION_ID": session_id,

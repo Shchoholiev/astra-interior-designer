@@ -64,6 +64,7 @@ class SessionRecord:
     remote_url: str | None = None
     status: str = "starting"
     sandbox_id: str | None = None
+    persistent_workspace: bool = False
     owner_id: str | None = None
     title: str | None = None
     created_at: datetime = field(default_factory=_now)
@@ -190,12 +191,15 @@ class DynamoStorage:
         *,
         status: str | None = None,
         sandbox_id: str | None = None,
+        persistent_workspace: bool | None = None,
     ) -> SessionRecord:
         updates = {"updated_at": _timestamp(_now())}
         if status is not None:
             updates["status"] = status
         if sandbox_id is not None:
             updates["sandbox_id"] = sandbox_id
+        if persistent_workspace is not None:
+            updates["persistent_workspace"] = persistent_workspace
         names = {f"#f{index}": key for index, key in enumerate(updates)}
         values = {f":v{index}": value for index, value in enumerate(updates.values())}
         expression = ", ".join(f"#f{i} = :v{i}" for i in range(len(updates)))

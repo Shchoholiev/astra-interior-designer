@@ -11,7 +11,7 @@ from pathlib import Path
 import modal
 
 BASE_IMAGE_ID = "im-ELY2dohC6fxZVS7MuAnm3x"
-IMAGE_NAME = "astra-blender:v10"
+IMAGE_NAME = "astra-blender:v11"
 APP_NAME = "astra-interior-designer-blender"
 HERE = Path(__file__).resolve().parent
 PLUGIN = HERE.parents[1] / "plugins" / "interior-desing"
@@ -44,12 +44,14 @@ def production_image():
         .run_commands(
             "useradd --uid 10001 --user-group --create-home "
             "--shell /bin/bash astra-agent",
-            "mkdir -p /run/astra /run/astra-blender /workspace/inputs "
+            "mkdir -p /run/astra /run/astra-blender /workspace "
             "&& chmod 700 /run/astra /run/astra-blender "
             "&& chown 10001:10001 /run/astra-blender "
-            "&& chmod 1777 /workspace && chmod 755 /workspace/inputs",
+            "&& chmod 1777 /workspace",
             "cat /opt/astra/local/workspace-AGENTS.md /opt/astra/backend-AGENTS.md "
-            "> /workspace/AGENTS.md",
+            "> /opt/astra/workspace-AGENTS.md",
+            "python -c \"from pathlib import Path; "
+            "assert not any(Path('/workspace').iterdir())\"",
             "python -m py_compile /opt/astra/runtime.py "
             "/opt/astra/bootstrap_blender.py",
             "python /opt/astra/runtime.py --help",

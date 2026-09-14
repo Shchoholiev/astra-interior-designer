@@ -4,7 +4,7 @@
 |---|---|---|
 | `POST /sessions` | Create an Agents API session and return `session_id` immediately after persistence. | Assign storage prefix `sandboxes/{session_id}/` and start the sandbox in the background. Session status is `starting`, then `idle` when ready or `failed` if startup fails. |
 | `GET /sessions` | Return the current user's sessions ordered by most recently updated. | Read session metadata from DynamoDB. Do not start compute or generate signed scene URLs. |
-| `GET /sessions/{session_id}` | Return session status, sandbox status, paginated chat history, `scene_url` / `scene_url_expires_at`, and `render_url` / `render_url_expires_at` / `render_sha256`. URLs are presigned for 12 hours (`43,200` seconds). Each export's fields are `null` before its first upload. | Read session metadata and messages from DynamoDB. Inspect the existing sandbox and resolve `sandboxes/{session_id}/scene.glb` and `render.png` in S3; do not start compute. |
+| `GET /sessions/{session_id}` | Return session status, sandbox status, paginated chat history, `scene_url` / `scene_url_expires_at`, and `render_url` / `render_url_expires_at` / `render_sha256`. URLs are presigned for 12 hours (`43,200` seconds). Each export's fields are `null` before its first upload. | Read session metadata and messages from DynamoDB. Inspect the existing sandbox and resolve `sandboxes/{session_id}/scene.glb` and `render.png` in S3; completed sessions do not start compute. Pending requests resume their recovery worker under a session lease. |
 | `POST /sessions/{session_id}/message` | Accept `{message_id, text, attachment_keys?}` and stream native Agents API events over SSE. Use `message_id` as the idempotency key. Attachments reference objects under this session's `inputs/` prefix. | Wait for any background startup, then reuse the sandbox or start it if stopped. Send SSE startup progress while waiting for Blender/MCP and the executor before submitting input. |
 | `POST /sessions/{session_id}/cancel` | Request cancellation of the active turn through the Agents API. | No sandbox shutdown. Preserve the chat, DB history, and S3 files. |
 | `POST /sessions/{session_id}/files/upload-url` | Accept `{filename, content_type}`. Return a new `object_key`, presigned PUT `upload_url`, required headers, and expiry. | No sandbox needed. The browser uploads directly under `sandboxes/{session_id}/inputs/` in the shared bucket. |
@@ -37,7 +37,7 @@ Save user input before submission and completed agent/tool items as they arrive.
 | Contract | Responsibility |
 |---|---|
 | Storage | One private bucket. Files under `sandboxes/{session_id}/`; viewer scene at `scene.glb`, latest exported image at `render.png`. Store object keys as permanent references. |
-| Modal | Download new inputs from S3 every two seconds into `/workspace/inputs/`, read-only to Blender and the agent. Confirm attachment downloads before submitting their message. Upload complete, self-contained `scene.glb` exports and accepted PNG exports through the S3 SDK. Working files remain local. |
+| Modal | Download new inputs from S3 every two seconds into `/workspace/inputs/`, read-only to Blender and the agent. Confirm attachment downloads before submitting their message. Upload complete, self-contained `scene.glb` exports and accepted PNG exports through the S3 SDK. Working files persist in a Modal Volume isolated by session and bucket. |
 | Frontend | Load `scene_url` in Three.js; use `render_url` to display or download the exported PNG and `render_sha256` to identify the latest image. Presigned downloads last 12 hours; signing credentials must cover that window. Upload through presigned PUT URLs. |
 | Access | Credentials in backend/Modal secrets. Restrict access to the session's prefix; configure CORS for the frontend. |
 | Persistence | Inputs and uploaded scene/image exports survive sandbox stops. The local working `.blend`, render previews, and other unsaved state do not. |
@@ -63,5 +63,6 @@ permission failures or missing checksum metadata are storage errors.
 | `/workspace/inputs/` (read-only to the agent) | `sandboxes/{session_id}/inputs/` |
 | `/workspace/scene.glb` | `sandboxes/{session_id}/scene.glb` |
 | `/workspace/render.png` | `sandboxes/{session_id}/render.png` (latest accepted export) |
-| `/workspace/renders/`, `/run/astra-exports/render-upload.json` | Local previews and upload receipt only. |
+| `/workspace/` | Durable session volume, including native scenes, textures and render copies. |
+| `/run/astra-exports/render-upload.json` | Runtime-local upload receipt. |
 | Working `.blend`, scripts, and temporary files | Local only. |
