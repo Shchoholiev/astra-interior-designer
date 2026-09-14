@@ -846,13 +846,27 @@ class SessionService:
             await self.store.upsert_message(replace(message, content=placeholder))
 
     async def _reconcile(self, record: SessionRecord, session: _AgentSession):
+        # Reconciliation also runs when reading completed sessions. Read the
+        # persisted history in pages instead of rewriting every retained item
+        # (and performing a DynamoDB lookup per item) on every history request.
+        messages = {}
+        cursor = None
+        while True:
+            page = await self.store.list_messages(
+                record.session_id, limit=100, cursor=cursor
+            )
+            messages.update((message.message_id, message) for message in page.messages)
+            if not page.next_cursor:
+                break
+            cursor = page.next_cursor
         after = None
         while True:
             page = await session.list_items(limit=100, order="asc", after=after)
             for item in page.data:
-                await self._save_item(
-                    record, item.model_dump(mode="json", exclude_none=True)
-                )
+                payload = item.model_dump(mode="json", exclude_none=True)
+                existing = messages.get(item.id)
+                if existing is None or existing.content != payload:
+                    await self._save_item(record, payload)
             if not page.has_more:
                 break
             next_after = page.data[-1].id if page.data else None
@@ -862,21 +876,13 @@ class SessionService:
         info = await session.retrieve()
         if record.status not in {"starting", "failed"}:
             await self.store.update_session(record.session_id, status=info.status)
-        cursor = None
-        while True:
-            page = await self.store.list_messages(
-                record.session_id, limit=100, cursor=cursor
-            )
-            for message in page.messages:
-                if message.role == "user" and message.status not in _TERMINAL_MESSAGES:
-                    turn = await self._message_turn(session, message)
-                    if turn and turn.status in _TERMINAL_MESSAGES:
-                        await self.store.upsert_message(
-                            replace(message, status=turn.status, turn_id=turn.id)
-                        )
-            if not page.next_cursor:
-                break
-            cursor = page.next_cursor
+        for message in messages.values():
+            if message.role == "user" and message.status not in _TERMINAL_MESSAGES:
+                turn = await self._message_turn(session, message)
+                if turn and turn.status in _TERMINAL_MESSAGES:
+                    await self.store.upsert_message(
+                        replace(message, status=turn.status, turn_id=turn.id)
+                    )
 
     async def _message_turn(self, session, message):
         if message.turn_id:
