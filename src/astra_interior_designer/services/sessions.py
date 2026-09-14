@@ -953,7 +953,14 @@ class SessionService:
 
     async def _message_turn(self, session, message):
         if message.turn_id:
-            return await session.retrieve_turn(message.turn_id)
+            try:
+                return await session.retrieve_turn(message.turn_id)
+            except APIStatusError as exc:
+                if exc.status_code != 404:
+                    raise
+                # Retained turn metadata can lag live execution, including when
+                # a replacement backend adopts the persisted request from GET.
+                return None
         previous = message.previous_turn_id
         page = await session.list_turns(limit=100, order="desc")
         candidates = []
@@ -978,16 +985,14 @@ class SessionService:
                 message = live.message
                 if message is None:
                     return
-                try:
-                    turn = await self._message_turn(live.session, message)
-                except APIStatusError as exc:
-                    if exc.status_code != 404 or message.turn_id is None:
-                        raise
-                    # Retained turn metadata can lag the live executor. A missing
-                    # known turn is not proof of completion or failed submission.
-                    turn = None
+                turn = await self._message_turn(live.session, message)
                 info = await live.session.retrieve()
-                if turn is None or turn.status not in _TERMINAL_MESSAGES:
+                if live.terminal is not None and info.status != "in_progress":
+                    await self._finish(record, live, live.terminal)
+                    return
+                if live.terminal is None and (
+                    turn is None or turn.status not in _TERMINAL_MESSAGES
+                ):
                     # Disconnection events may be missed, and session status may
                     # still say idle after accepted input. Check the environment
                     # while this persisted request has no confirmed completion.
