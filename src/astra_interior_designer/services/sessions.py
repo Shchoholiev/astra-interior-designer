@@ -730,6 +730,23 @@ class SessionService:
                         raise SessionUnavailable(
                             "Legacy active workspace needs restoration"
                         )
+                    message = live.message
+                    if (
+                        sandbox_id
+                        and message is not None
+                        and message.status == "submitted"
+                        and message.turn_id is None
+                        and live.terminal is None
+                        and await self._message_turn(live.session, message) is None
+                        and live.message is message
+                    ):
+                        # Persist before replacement so a worker loss or failed
+                        # POST cannot strand an accepted input with no visible turn.
+                        async with live.finishing:
+                            if live.message is message and live.terminal is None:
+                                live.message = await self.store.upsert_message(
+                                    replace(message, replay_from_sandbox_id=sandbox_id)
+                                )
                     live.connected.clear()
                     try:
                         handle = await self.sandbox.start(
@@ -823,9 +840,16 @@ class SessionService:
                 and live.message.turn_id is None
                 and not is_child
             ):
-                live.message = await self.store.upsert_message(
-                    replace(live.message, turn_id=turn_id, status="submitted")
-                )
+                async with live.finishing:
+                    if live.message is not None and live.message.turn_id is None:
+                        live.message = await self.store.upsert_message(
+                            replace(
+                                live.message,
+                                turn_id=turn_id,
+                                status="submitted",
+                                replay_from_sandbox_id=None,
+                            )
+                        )
             if event.type in _TURN_END and turn_id == live.message.turn_id:
                 live.terminal = _TURN_END[event.type]
             if event.type == "agent.session.failed" and not is_child:
@@ -1010,11 +1034,32 @@ class SessionService:
                     live.message = replace(message, turn_id=turn.id)
                     await self._finish(record, live, turn.status)
                     return
+                message = live.message
+                if message is None or live.terminal is not None:
+                    continue
+                if message.replay_from_sandbox_id:
+                    # Read again after readiness: events or retained metadata may
+                    # have caught up while the replacement was connecting.
+                    turn = await self._message_turn(live.session, message)
+                    info = await live.session.retrieve()
+                    current = await self.store.get_session(record.session_id)
+                    if live.message is not message or live.terminal is not None:
+                        continue
+                    if turn is not None or message.turn_id is not None:
+                        async with live.finishing:
+                            if live.message is message:
+                                live.message = await self.store.upsert_message(
+                                    replace(message, replay_from_sandbox_id=None)
+                                )
+                        continue
+                    replaced = current.sandbox_id != message.replay_from_sandbox_id
+                else:
+                    replaced = False
                 if (
                     turn is None
                     and message.turn_id is None
                     and info.status == "idle"
-                    and message.status == "pending"
+                    and (message.status == "pending" or replaced)
                 ):
                     # Retrying an uncertain submission is safe with its original key.
                     await live.session.send_input(
@@ -1023,10 +1068,15 @@ class SessionService:
                         ),
                         idempotency_key=message.message_id,
                     )
-                    if live.message is not None and live.message.status == "pending":
-                        live.message = await self.store.upsert_message(
-                            replace(live.message, status="submitted")
-                        )
+                    async with live.finishing:
+                        if live.message is not None and live.terminal is None:
+                            live.message = await self.store.upsert_message(
+                                replace(
+                                    live.message,
+                                    status="submitted",
+                                    replay_from_sandbox_id=None,
+                                )
+                            )
                 failures = 0
             except asyncio.CancelledError:
                 raise
@@ -1077,7 +1127,9 @@ class SessionService:
             )
             turn_id = (latest.turn_id if latest else None) or message.turn_id
             await self.store.upsert_message(
-                replace(message, status=status, turn_id=turn_id)
+                replace(
+                    message, status=status, turn_id=turn_id, replay_from_sandbox_id=None
+                )
             )
             await self.store.update_session(
                 record.session_id, status="failed" if status == "failed" else "idle"

@@ -83,6 +83,7 @@ class MessageRecord:
     turn_id: str | None = None
     previous_turn_id: str | None = None
     attachment_keys: tuple[str, ...] = ()
+    replay_from_sandbox_id: str | None = None
 
     @property
     def message_key(self) -> str:
