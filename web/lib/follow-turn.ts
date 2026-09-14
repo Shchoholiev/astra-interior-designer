@@ -16,6 +16,32 @@ export function waitForRetry(ms: number, signal: AbortSignal) {
   });
 }
 
+// Retry only reads. A failed room-creation POST has uncertain acceptance and
+// must never be repeated by this connection-recovery loop.
+export async function retrySessionRead<T>(
+  read: () => Promise<T>,
+  signal: AbortSignal,
+  onRetry: () => void,
+  wait = waitForRetry,
+): Promise<T> {
+  let failures = 0;
+  while (true) {
+    signal.throwIfAborted();
+    try {
+      const result = await read();
+      signal.throwIfAborted();
+      return result;
+    }
+    catch (error) {
+      signal.throwIfAborted();
+      if (error instanceof Error && "status" in error && typeof error.status === "number"
+        && error.status >= 400 && error.status < 500 && ![408, 409, 429].includes(error.status)) throw error;
+      onRetry();
+      await wait(Math.min(1000 * 2 ** Math.min(failures++, 5), 30000), signal);
+    }
+  }
+}
+
 export async function* followTurn({ stream, snapshot, messageId, signal, wait = waitForRetry }: {
   // Omit the stream when reopening an existing turn: recovery must never submit.
   stream?: () => AsyncIterable<AstraEvent>;
