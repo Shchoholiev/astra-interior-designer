@@ -449,6 +449,7 @@ class SessionService:
                     # Browser resume polls snapshots, without another POST. Adopt
                     # the persisted request under this lease after a worker loss.
                     live = await self._watch_session(record, session)
+                    await self.store.update_session(session_id, status="in_progress")
                     live.message = max(pending, key=lambda message: message.created_at)
                     live.terminal = None
                     live.recovery = asyncio.create_task(
