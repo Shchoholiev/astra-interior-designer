@@ -135,7 +135,7 @@ export class AstraApi {
       const response = await fetch(`/api/astra/sessions/${encodeURIComponent(sessionId)}?${query}`, {
         cache: "no-store", signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000),
       });
-      if (!response.ok) throw new Error(await errorMessage(response));
+      if (!response.ok) throw new AstraHttpError(await errorMessage(response), response.status);
       const page = await response.json() as AstraSession;
       session = session ? { ...page, messages: [...session.messages, ...page.messages] } : page;
       cursor = page.next_cursor;
