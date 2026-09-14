@@ -53,8 +53,12 @@ export async function* followTurn({ stream, snapshot, messageId, signal, wait = 
         failures = 0;
       } catch (error) {
         if (signal.aborted) throw error;
-        if (++failures >= 5) throw new TurnConnectionError("Connection lost. I couldn't confirm whether the turn finished. It was not cancelled; refresh this session to recover its progress.");
-        await wait(Math.min(1000 * 2 ** failures, 10000), signal);
+        if (error instanceof Error && "status" in error && typeof error.status === "number"
+          && error.status >= 400 && error.status < 500 && ![408, 409, 429].includes(error.status)) throw error;
+        // The accepted turn keeps running while the browser is offline. Keep
+        // following it until connectivity returns or the user stops waiting.
+        failures = Math.min(failures + 1, 5);
+        await wait(Math.min(1000 * 2 ** failures, 30000), signal);
         continue;
       }
       yield { event: "astra.snapshot", data: { session } };
