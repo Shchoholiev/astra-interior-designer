@@ -675,6 +675,9 @@ class Supervisor:
                     )
                     storage_thread.start()
                     print("ASTRA_RUNTIME_READY", flush=True)
+                    executor_delay = 1
+                    executor_restart_at = 0
+                    executor_started_at = time.monotonic()
                     while not self.stopping.wait(0.25):
                         with self.process_lock:
                             exited = {
@@ -682,10 +685,36 @@ class Supervisor:
                                 for name, child in self.children.items()
                                 if child.poll() is not None
                             }
-                        if exited:
-                            raise RuntimeError(
-                                "Essential process exited: " + json.dumps(exited)
-                            )
+                            essential = {
+                                name: code
+                                for name, code in exited.items()
+                                if name != "executor"
+                            }
+                            if essential:
+                                raise RuntimeError(
+                                    "Essential process exited: " + json.dumps(essential)
+                                )
+                            now = time.monotonic()
+                            if "executor" in exited and now >= executor_restart_at:
+                                print(
+                                    "ASTRA_EXECUTOR_RESTART exit="
+                                    + str(exited["executor"]),
+                                    flush=True,
+                                )
+                                executor_restart_at = now + executor_delay
+                                executor_delay = min(executor_delay * 2, 30)
+                                try:
+                                    self.reconnect_executor()
+                                except Exception as error:
+                                    print(
+                                        "Executor reconnect failed: "
+                                        + type(error).__name__,
+                                        flush=True,
+                                    )
+                                else:
+                                    executor_started_at = time.monotonic()
+                            elif not exited and now - executor_started_at >= 30:
+                                executor_delay = 1
                 finally:
                     self.stopping.set()
                     control.shutdown()
