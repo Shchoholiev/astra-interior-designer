@@ -45,6 +45,18 @@ Change a small coherent set of variables per pass. Compare the original defect a
 
 ## Final visual assessment
 
+Judge the final image again from the brief, before reading your earlier acceptance notes. First scan the whole image for unexplained light and unfinished architectural/fixture connections; then inspect prominent fixtures, furniture and textiles at delivery scale. Inspect untouched objects too: a successful material pass can expose a pre-existing construction fault. When a feature is hidden or ambiguous in the camera image, use a side/section view or evaluated geometry before marking it verified.
+
+Record two separate outcomes in the final review: **technical delivery** (valid image, resolution and camera) and **visual acceptance** (meets the requested photographic/design quality, or requires fixes). Support visual acceptance with these scene-specific entries:
+
+| Check | Evidence to record |
+| --- | --- |
+| Enclosure and light paths | Visible wall/ceiling junctions and corners; any unexplained bright wedge or open seam and its confirmed cause. |
+| Installed assemblies | For prominent plumbing, extraction and appliances, trace the connected parts, support, intended openings and clearance from adjacent surfaces. Name the inspected crop or diagnostic view. |
+| Photographic plausibility | Identify the largest remaining synthetic cue in the actual image: silhouette, material response, textile thickness, repeated primitive props, scale or lighting. Correct it within scope, then compare the same region. |
+
+For photorealistic work, absence of intersections is only one check. A foreground cushion shaped like a rounded block, rigid cloth, or a fixture assembled from disconnected primitives remains a visual failure even with textures and a high-resolution Cycles render. Refine the construction or use a suitable detailed asset within the established footprint. Use the build skill's kitchen/furniture references for the relevant assembly. If no visible synthetic cue remains, explain that judgment through the inspected foreground and fixture details rather than a generic “passed” statement.
+
 After the last pass, deliver the inspected image(s) and corresponding native scene for edited work with:
 
 - **Visual verdict:** how well the image meets the brief, supported by visible strengths and weaknesses. Report technical completion separately.

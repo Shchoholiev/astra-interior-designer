@@ -16,6 +16,14 @@ Use supplied product dimensions and installation clearances when available. If w
 
 Read cooktop markings separately from physical burners. Printed rings on a glass hob should remain surface markings; raised metallic toruses change the construction. Match the reference's burner count and layout when selecting a replacement. Check cookware bases against the actual hob surface using [support checks](asset-integration.md#support-and-assembly-connections), including neighboring pans and handles. A detailed imported pot still needs the correct scale, placement, and separate metal/plastic material regions.
 
+## Faucet, basin, and window clearance
+
+Treat the faucet as an installed assembly: mounting base, continuous body and spout, outlet above the basin, and an attached or deliberately separate control mounted on the deck. Trace that assembly in a side view through the countertop, sink rim, backsplash, and window sill. A spout that disappears into a sill and reappears above it is a collision, even if its curve is connected internally. Place the complete faucet in the available deck space with its outlet reaching the bowl and its body clear of the sill. Verify the basin's actual recessed interior, drain, countertop aperture, and support rather than accepting nested metallic outlines as a sink. Recheck the rendered crop after any fixture or window adjustment.
+
+## Extractor installation
+
+Choose a coherent extractor type before detailing its finish. For a chimney hood, trace the canopy into a connected duct/chase and a credible wall or ceiling termination; an upright box ending in empty air does not establish a ventilation route. A wall-exit duct can terminate into the wall below the ceiling, but its connection must be modeled and verifiable in a side/section view. For a recirculating design, show a plausible filter/return-air arrangement instead of inventing an external duct. Inspect the complete assembly over the hob, including its underside, mounting and neighboring cabinet clearance. Describe inferred construction honestly; this visual check does not certify an installation.
+
 ## Hardware alignment and reach
 
 Place pulls relative to each door's local edges, orientation, and intended opening side. For aligned hardware, compare consistent offsets on equivalent doors rather than applying a world-height rule across unrelated cabinet rows. Move the complete pull and its mounting posts together; verify attachment to the door face and operation clearance.

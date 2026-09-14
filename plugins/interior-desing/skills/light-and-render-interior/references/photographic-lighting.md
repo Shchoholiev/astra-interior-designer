@@ -10,6 +10,8 @@ Broad light sources soften shadows and shape large reflections. Excessive fronta
 
 For exterior contribution, inspect windows, glazing, wall thickness, and unintended blockers. An environment texture is optional; use it when its light and reflection content suit the scene. Keep downloaded HDRIs local with provenance and a portable scene path. A world color or appropriate area light can also support the task without acquiring a new asset.
 
+Before tuning illumination, inspect the room's evaluated enclosure at wall tops, ceiling corners, and opening edges. A bright wedge, pinhole or line at a solid junction can be outside light entering a modeling gap. Compare the wall-top and ceiling-underside coordinates, including bevel displacement; close unintended gaps in the render copy and compare a matching crop with the same light and exposure. A ceiling added above a cutaway layout still needs continuous wall contact and enough coverage. Distinguish a real designed opening from a leak before using fill, exposure, denoising, or a darker material to hide it.
+
 When the window is in frame, provide an intentional visible exterior as well as daylight. Follow [window views](../../build-interior-scene/references/window-views.md) for a photographic backdrop plane. Match the photograph's light direction and weather to the room lighting, and check that the card neither blocks daylight nor adds unwanted illumination. Keep an approved camera and light rig stable while verifying the view.
 
 ## Trace reflections before changing materials
