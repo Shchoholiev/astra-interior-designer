@@ -25,7 +25,7 @@ For finished residential work, assess whether the room feels usable and inhabite
 
 Read [diagnosis guide](references/diagnosis.md) for symptom-driven checks. Separate observations from hypotheses. Confirm likely causes through targeted Blender MCP inspection, source-image inspection, or a small controlled render.
 
-When pillows, rugs or paintings look plush, read [their construction guide](../build-interior-scene/references/cushions-rugs-and-art.md). Record the intended object type and inspect its thickness, perimeter, contact and relief. Review the requested appearance after the last pass: adding seams or surface texture does not resolve excess padded volume, and an intersection-free painting can still have incorrectly raised motifs.
+For a photographic render with prominent pillows, rugs or paintings, read [their construction guide](../build-interior-scene/references/cushions-rugs-and-art.md) before accepting their appearance. Record the intended object type and inspect its thickness, perimeter, contact and relief. Review loose cushions separately from fixed sofa upholstery: passing the sofa's seams or fabric weave does not verify the pillows' shape. Adding surface texture does not resolve excess padded volume, and an intersection-free painting can still have incorrectly raised motifs.
 
 Rank the few defects that most affect the user's goal by their screen area, visual prominence, and mismatch to the reference. A dominant wrong silhouette can matter more than a small texture flaw. Within a material-only request, report geometry or lighting limits while keeping edits in scope.
 
@@ -48,6 +48,8 @@ Change a small coherent set of variables per pass. Compare the original defect a
 ## Final visual assessment
 
 Judge the final image again from the brief, before reading your earlier acceptance notes. First scan the whole image for unexplained light and unfinished architectural/fixture connections; then inspect prominent fixtures, furniture and textiles at delivery scale. Inspect untouched objects too: a successful material pass can expose a pre-existing construction fault. When a feature is hidden or ambiguous in the camera image, use a side/section view or evaluated geometry before marking it verified.
+
+Before authorizing the final-resolution render, assess the dominant foreground objects in the completed preview at two scales. In the whole frame, judge their outline, cross-section and support without relying on fine texture. Then use detail views for seams, weave and finish. Record a construction verdict and a separate surface verdict for the few prominent object groups in the render notes. Name the visible evidence rather than repeating the intended result. For example, "linen weave visible" can pass the surface check while "flat pillow face with a thick rim" still requires a geometry correction. Correct a failed construction check within scope before spending another full-resolution pass on smaller surface defects; do not wait for the user to point it out.
 
 Record two separate outcomes in the final review: **technical delivery** (valid image, resolution and camera) and **visual acceptance** (meets the requested photographic/design quality, or requires fixes). Support visual acceptance with these scene-specific entries:
 
