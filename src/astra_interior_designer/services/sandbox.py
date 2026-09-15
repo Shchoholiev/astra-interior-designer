@@ -65,7 +65,7 @@ class SandboxService:
         executor_secret_name: str = "",
         s3_credentials: Callable[[str, str], Awaitable[SandboxCredentials]]
         | None = None,
-        image_name: str = "astra-blender:v14",
+        image_name: str = "astra-blender:v15",
         app_name: str = "astra-interior-designer-blender",
         aws_region: str = "us-east-1",
         remote_url: str = "https://api.openai.com/v1/agents/api",
