@@ -27,6 +27,8 @@ Read [diagnosis guide](references/diagnosis.md) for symptom-driven checks. Separ
 
 For a photographic render with prominent pillows, rugs or paintings, read [their construction guide](../build-interior-scene/references/cushions-rugs-and-art.md) before accepting their appearance. Record the intended object type and inspect its thickness, perimeter, contact and relief. Review loose cushions separately from fixed sofa upholstery: passing the sofa's seams or fabric weave does not verify the pillows' shape. Adding surface texture does not resolve excess padded volume, and an intersection-free painting can still have incorrectly raised motifs.
 
+For prominent seating, assess the whole assembly as well as its cushions using [furniture construction](../build-interior-scene/references/furniture-construction.md#resolve-the-sofa-assembly-before-finishing-its-fabric). Inspect the arm–base junction, seat support and base–foot connection in one coherent crop. A seam on a seat cushion does not verify an attached arm or the lower frame. Reject a frame that still reads as stacked rounded pads unless the brief or furniture reference actually calls for that construction. Describe the visible join and compare it with the chosen design; object names such as “frame,” “sewn panel” or “supported cushion” are modeling intentions, not visual evidence.
+
 Rank the few defects that most affect the user's goal by their screen area, visual prominence, and mismatch to the reference. A dominant wrong silhouette can matter more than a small texture flaw. Within a material-only request, report geometry or lighting limits while keeping edits in scope.
 
 Return each finding in this compact form:

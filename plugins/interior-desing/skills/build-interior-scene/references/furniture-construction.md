@@ -14,6 +14,18 @@ Keep these controls independent when modeling. Broad subdivision or a uniform be
 
 For "make the seat thicker, otherwise good," measure front, middle, and rear thickness. If the top and seat height are accepted, add volume downward and retain their shape. Recheck the underside, leg insertion, floor contact, and table clearance. Do not increase the top crown just to obtain thickness. A request to reduce the top bend likewise need not flatten an intentional underside arch. Dimensions from a previous chair are examples, not defaults for new furniture.
 
+## Resolve the sofa assembly before finishing its fabric
+
+For a prominent sofa, inspect the arm, lower frame, seat deck, removable cushions and feet as a connected assembly. A collection of individually rounded boxes can have correct overall dimensions and still look like stacked foam. Treat that layout geometry as a blockout until the visible transitions describe the selected furniture design.
+
+Choose the construction from a suitable furniture reference or a detailed asset: for example, an upholstered frame with attached track arms and removable seat cushions, versus deliberately separate padded modules. Record which parts share a continuous cover, which meet at a panel seam, and which are independently removable. Do not invent the same join on every sofa or erase intentional modular boundaries.
+
+In a front three-quarter crop, trace the arm down to the lower frame and the frame to its feet. Check the inside arm beside the seat and the front corner where arm and base meet. For an attached upholstered frame, a rounded arm ending like a capsule sunk into a second pill-shaped base is not evidence of an assembled frame. Shape the shared outline or the actual panel termination; use different edge profiles for the padded top, side panel and structural lower rail. Merely increasing intersections, adding piping to each box, or applying a union modifier does not establish the intended join.
+
+The seat cushion should sit on a supporting deck between the arms. Preserve the chosen cushion thickness while checking usable seat width, side clearance, front overhang and support under the front edge. Determine exposed feet from the base/frame geometry rather than attaching them to an arbitrary soft surface. Hidden internal carpentry need not be modeled when it has no visible effect; the visible construction and support must still be coherent.
+
+Compare the arm–base junction, cushion–arm clearance and base–foot contact with the selected reference at equal image scale before fabric detail. If a procedural blockout cannot match those prominent shapes efficiently, use [find-3d-models](../../find-3d-models/SKILL.md) and a suitable detailed asset within the approved footprint. Preserve palette, layout and camera; do not choose a stylistically unrelated sofa just because its mesh is detailed.
+
 ## Follow the cover construction
 
 Identify the broad cover, side panels or gussets, and any continuous wrap over the top before adding detail. Distinguish a recessed panel join from visible thread stitches and raised piping. The user's word "stitch" may refer to the visible join; use the supplied example or annotation to determine what is actually shown.

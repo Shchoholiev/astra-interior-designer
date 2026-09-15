@@ -23,7 +23,7 @@ Keep the established camera for subsequent comparisons. Change it when compositi
 
 Use named collections and component objects for architecture, furniture, plants, props, and lights. Preserve logical pivots and parent hierarchies. Reuse data for intentional repeats; isolate it when a local edit must not affect other instances. Stable names and an import record help scripts update existing objects without accumulating duplicates.
 
-For custom furniture, upholstery repairs, or unnatural seating arrangements, read [furniture construction](references/furniture-construction.md). It covers independent shape controls, panel joins, an isolated asset review, and placement relative to the furniture people use together.
+For custom furniture, upholstery repairs, or unnatural seating arrangements, read [furniture construction](references/furniture-construction.md). It covers independent shape controls, sofa arm/base/deck assemblies, panel joins, an isolated asset review, and placement relative to the furniture people use together.
 
 For backsplashes, built-in appliances, cabinet hardware, or visible tableware, read [kitchen construction](references/kitchen-construction.md). Check installation geometry, intended boundaries, and usable relationships before compensating with surface finish. For ordinary hinged wall-cabinet doors, verify lower opening-side pull placement, actual grip height and reach over the counter, hand clearance, and the opening sweep; visual alignment alone is insufficient.
 
