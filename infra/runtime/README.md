@@ -1,7 +1,7 @@
 # Production sandbox runtime
 
 `image.py` extends the tested tooling image
-`im-ELY2dohC6fxZVS7MuAnm3x` and publishes `astra-blender:v15`. The base contains
+`im-ELY2dohC6fxZVS7MuAnm3x` and publishes `astra-blender:v16`. The base contains
 Blender 5.2.1, Blender MCP 1.9.1, Codex CLI 0.153.4, Xvfb and the render/native-save
 helpers and Pillow 12.1.1 from `infra/modal_local/`. This layer adds boto3 1.43.91 and the existing
 S3/executor supervisor, plus the complete `plugins/interior-desing` plugin at
@@ -152,3 +152,5 @@ Runtime v13 packages plugin 0.3.6 with object-specific pillow, rug and painting 
 Runtime v14 packages plugin 0.3.7 with construction review before final rendering and a loose-cushion panel construction method. Runtime behavior remains unchanged from v13; new session sandboxes continue to use L4 GPUs.
 
 Runtime v15 packages plugin 0.3.8 with whole-sofa assembly and arm/base, seat/deck, and frame/foot review. Runtime behavior and L4 selection remain unchanged from v14.
+
+Runtime v16 packages plugin 0.3.9 with scan recoloring diagnostics for collapsed color variation and disconnected roughness maps. Runtime behavior and L4 selection remain unchanged from v15.
