@@ -10,6 +10,12 @@ Use the source's declared color encoding for color images, commonly sRGB for bas
 
 Distinguish a missing file from an unloaded image buffer. After a GPU render, `image.has_data == False` alone does not establish a missing texture. Check packed storage or the resolved local source and attempt a small pixel read/decode. Reload an external image only when its source is available and doing so will not discard unsaved image edits. Resolve linked-library paths relative to their library; enumerate tiles for UDIM images rather than checking a literal `<UDIM>` filename.
 
+## A scan that renders as a flat color
+
+Trace the source through every color adjustment to the active shader input. A connected image can lose its variation in a Color Ramp or clamped remap. Compare the actual adjustment input, including preceding nodes and color-to-scalar conversion, with its range. For a Color Ramp, distinguish stop positions from output colors. Encoded file pixels and shader values are not interchangeable. Inspect the adjusted color on the target surface, separately from lighting and bump, before increasing texture contrast or relief.
+
+When recoloring a scan, preserve relative variation appropriate to the material and reference around the requested color; baked illumination or unwanted stains are not automatically useful detail. Choose the adjustment from this source's range, then compare the rendered result with the unadjusted scan at the same physical coverage. For an available roughness map, verify its actual shader path and effect; merely loading it alongside a constant Roughness value does not use it. Retain deliberate constant finishes when they match the reference. Judge the result again under room lighting at delivery scale.
+
 ## A UV edit that does not affect the render
 
 Trace each Image Texture's Vector input. A named UV Map node selects that named layer; an implicit UV input or Texture Coordinate UV output uses the render-active layer. The layer selected for editing can be different. Inspect both selections and the actual shader connection before another UV edit. [Blender UV Map documentation](https://docs.blender.org/manual/en/5.2/render/shader_nodes/input/uv_map.html)
