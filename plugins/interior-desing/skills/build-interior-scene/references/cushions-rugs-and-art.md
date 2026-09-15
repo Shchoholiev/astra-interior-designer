@@ -12,6 +12,14 @@ Use when these objects look inflated, plush, rubbery, or toy-like. Start by iden
 
 For pillows, shape the perimeter and broad faces independently. Let filling create restrained fullness between sewn edges; taper or gather corners according to the cover, and flatten the supported region where the pillow meets the sofa or another cushion. Add a few folds that originate at seams, bends or compression. Preserve a deliberately taut cover. Inspect the evaluated mesh: subdivision and broad bevels can erase the perimeter and inflate every corner even when a seam curve is present. Sheen, fuzz and stronger bump cannot repair that silhouette.
 
+### Rebuild a loose cushion that still reads as a block
+
+Inspect one cushion from the room camera and from the side before copying its shape to the others. A broad flat face bounded by a thick, nearly constant-depth rim describes a foam slab even when its corners are rounded and its fabric texture is convincing. A narrow seam curve drawn on that slab does not change its construction.
+
+A useful mesh construction is two curved fabric panels meeting at a common perimeter. Control their center fullness separately from their edge separation: taper panel depth toward the sewn boundary and let the corners narrow with the cover. This changes the cross-section, not just the bevel radius. Keep an intentional gusset when the chosen cover has one; firm boxed upholstery should retain its different construction.
+
+Place the rebuilt cushion against the actual sofa geometry, then flatten and gather its supported lower region in that placement. Add a small number of unequal folds that fade away from a seam or compressed corner. Avoid equally spaced grooves across the whole face: they describe corrugation rather than local cloth tension. Check the evaluated side profile, the bottom contact and the room image before replacing other loose cushions. Vary support and folds with each cushion's placement rather than applying one wrinkle pattern to every instance.
+
 For rugs, establish backing thickness, pile and edge treatment separately. Use restrained weave relief or fibers at the intended physical scale. Check displacement, Solidify and bevel together so their combined depth does not turn a low-pile rug into padding. Keep ordinary bound corners and borders close to the textile profile; recheck feet after any thickness change. Add fringe, curling or irregularity when it belongs to the chosen textile. When the brief calls for shag, tufting or a thick textile, retain that construction instead of flattening all rugs.
 
 For paintings, put the composition in an image texture or color/mask treatment on the same support surface. This includes painted lines as well as filled shapes. Use shallow canvas or brush relief when appropriate. Reserve separate extruded motifs for an explicitly sculptural relief, collage with physical layers, or textile wall hanging. A canvas stretched over bars can have real edge depth while its painted face remains taut. Preserve the artwork's colors and arrangement when converting accidental raised primitives into a painted surface. Keep glazing and any mat board as distinct components when the framing calls for them.
@@ -19,5 +27,7 @@ For paintings, put the composition in an image texture or color/mask treatment o
 ## Verify the correction
 
 Record the chosen construction and actual thickness/profile before tuning materials. Inspect the silhouette or a neutral diagnostic view to separate excess geometry from a soft highlight; then inspect the real materials under the room lighting. Compare the same camera and a side or grazing detail view, with exposure and resolution held constant.
+
+Review loose cushions separately from the sofa's fixed seat and back upholstery. A valid seat seam or visible linen weave is not evidence about the loose pillows' panels, rim or support. When converting a layout to a photographic render, make this construction check before the final-resolution job, even if the user has not singled out a pillow defect.
 
 Judge the requested appearance again after the last pass. Added seams, weave, brush texture, or a successful intersection check are evidence of those details only. If a pillow still reads as a rounded block, a rug as a padded slab, or a painting as upholstered relief, keep that item marked unresolved and correct its construction before accepting photorealistic work. Preserve intentional plush or sculptural designs when the brief actually asks for them.

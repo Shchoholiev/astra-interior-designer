@@ -31,6 +31,8 @@ Retain the established composition. Camera focus or depth of field should suppor
 
 Choose preview resolution and sampling to resolve the current question. A material seam needs a useful crop at sufficient pixel density; a lighting balance needs the full frame. For final output, inspect residual noise and denoising artifacts before raising the sample ceiling. Sampling settings are scene-dependent, not a fixed preset copied from a prior room.
 
+When photographic refinement is requested, use [render review](../review-interior-render/SKILL.md#final-visual-assessment) to check prominent object construction in a completed preview before launching the final-resolution job. A layout primitive with a finished shader is still a layout primitive: route a demonstrated shape or support defect back to scene building when geometry refinement is in scope. For an output-only request, preserve approved geometry and report the limitation instead.
+
 Use the runtime's existing asynchronous render helper when available. Inspect its arguments and side effects first: a fixture preset can silently replace the current camera, exposure, or output settings. Keep one active render per Blender process, assign a unique output/job name, and track status through file tools while Blender is busy.
 
 After completion, decode and inspect the output at full frame and relevant detail scale. Confirm camera, dimensions, border/crop, file format, color transform, and scene version. A file from an older job is not evidence for the current render.
