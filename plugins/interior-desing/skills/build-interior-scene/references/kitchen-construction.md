@@ -26,9 +26,13 @@ Choose a coherent extractor type before detailing its finish. For a chimney hood
 
 ## Hardware alignment and reach
 
+Place pulls for the person operating the cabinet, not for symmetry in the camera frame. On ordinary hinged wall-cabinet doors, put pulls near the **lower opening-side corner**, opposite the hinge; on base-cabinet doors, use the upper opening-side corner. Paired leaves normally have pulls beside their meeting edges. Verify the actual hinge/opening arrangement before mirroring. Do not copy a base-door top-edge offset onto wall cabinets, and do not treat an imported model's hardware placement as verified.
+
 Place pulls relative to each door's local edges, orientation, and intended opening side. For aligned hardware, compare consistent offsets on equivalent doors rather than applying a world-height rule across unrelated cabinet rows. Move the complete pull and its mounting posts together; verify attachment to the door face and operation clearance.
 
-Assess usable reach separately from visual alignment. Check height from the supporting floor, intervening countertop depth, and whether the unit is intended as accessible or high storage. Moving a pull toward the bottom of a very high door can improve placement without making it reachable from the floor. Report that remaining limit when relevant; a handle-only request does not authorize lowering or rebuilding the cabinets.
+Assess usable reach separately from visual alignment. Check height from the supporting floor, intervening countertop depth, and whether the unit is intended as accessible or high storage. For prominent hardware, record the actual grip height above the finished floor, door-edge setback, counter depth or other obstruction, and the standing position from which it is operated. Inspect a front/side view with a human-scale reference, then check hand clearance and the door/drawer opening sweep against walls, adjacent pulls, faucets and appliances. A closed door without collisions is not proof that someone can grasp or open it. Use supplied occupant/product requirements when available; do not invent universal accessibility limits.
+
+Moving a pull toward the bottom of a very high door can improve placement without making it reachable from the floor. Report that remaining limit when relevant; a handle-only request does not authorize lowering or rebuilding the cabinets.
 
 ## Tableware profiles and support
 

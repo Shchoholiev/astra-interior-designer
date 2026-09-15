@@ -25,7 +25,7 @@ Use named collections and component objects for architecture, furniture, plants,
 
 For custom furniture, upholstery repairs, or unnatural seating arrangements, read [furniture construction](references/furniture-construction.md). It covers independent shape controls, panel joins, an isolated asset review, and placement relative to the furniture people use together.
 
-For backsplashes, built-in appliances, cabinet hardware, or visible tableware, read [kitchen construction](references/kitchen-construction.md). Check installation geometry, intended boundaries, and usable relationships before compensating with surface finish.
+For backsplashes, built-in appliances, cabinet hardware, or visible tableware, read [kitchen construction](references/kitchen-construction.md). Check installation geometry, intended boundaries, and usable relationships before compensating with surface finish. For ordinary hinged wall-cabinet doors, verify lower opening-side pull placement, actual grip height and reach over the counter, hand clearance, and the opening sweep; visual alignment alone is insufficient.
 
 Model architectural pieces with credible thickness, softened exposed edges, and contact surfaces. At a continuous wall–ceiling junction, align the meeting surfaces and inspect the evaluated seam: beveling every edge of separate boxes can open an artificial dark groove. Exclude internal contact edges from beveling while retaining appropriate exposed-edge treatment. Preserve intentional reveals, shadow gaps, and trim when specified. [Blender bevel controls](https://docs.blender.org/manual/en/4.4/modeling/modifiers/generate/bevel.html)
 
