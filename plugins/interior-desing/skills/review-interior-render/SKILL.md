@@ -25,6 +25,8 @@ For finished residential work, assess whether the room feels usable and inhabite
 
 Read [diagnosis guide](references/diagnosis.md) for symptom-driven checks. Separate observations from hypotheses. Confirm likely causes through targeted Blender MCP inspection, source-image inspection, or a small controlled render.
 
+When pillows, rugs or paintings look plush, read [their construction guide](../build-interior-scene/references/cushions-rugs-and-art.md). Record the intended object type and inspect its thickness, perimeter, contact and relief. Review the requested appearance after the last pass: adding seams or surface texture does not resolve excess padded volume, and an intersection-free painting can still have incorrectly raised motifs.
+
 Rank the few defects that most affect the user's goal by their screen area, visual prominence, and mismatch to the reference. A dominant wrong silhouette can matter more than a small texture flaw. Within a material-only request, report geometry or lighting limits while keeping edits in scope.
 
 Return each finding in this compact form:

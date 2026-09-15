@@ -18,6 +18,8 @@ For fabric, use the weave direction and a restrained fiber response. Sheen can r
 
 If the cushion lacks thickness, soft edges, or folds in silhouette, report the geometry limitation. Material noise cannot supply those shapes.
 
+When pillows, rugs and paintings all look plush, first check [object-specific construction](../../build-interior-scene/references/cushions-rugs-and-art.md). Distinguish filling volume, pile/fiber relief and canvas/paint relief; they are different scales and layers. Diagnose excess silhouette volume before changing sheen or roughness. For a material-only request, preserve geometry and report a construction limit rather than claiming stronger weave or bump fixed it.
+
 ## Lampshade fabric
 
 For a lit textile shade, check the actual shell and its modifiers before tuning the shader. A thin-sheet scattering approximation applied to both sides of a Solidify shell can attenuate light twice. Use one deliberate layer for that approximation, or model the real layered construction with a material appropriate to its thickness; do not remove a genuine lining merely to brighten the shade.
