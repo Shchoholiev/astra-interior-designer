@@ -79,6 +79,9 @@ python /opt/astra/runtime.py sync-inputs
 `start` downloads inputs and restores the last complete GLB, starts Xvfb and persistent
 Blender, executes a real scene query, then starts the executor. Blender reopens a
 local native master if present, otherwise imports the restored GLB or starts empty.
+Session sandboxes use one NVIDIA L4 GPU (24 GB VRAM). GPU selection is made by
+the backend when creating a sandbox, so changing it does not require rebuilding
+the Blender image. Existing sandboxes keep their GPU until replaced.
 The shared render helpers select OptiX GPU devices, GPU denoising, persistent data
 and eight Blender threads. Native `.blend` files, textures, scripts and render copies persist in the session volume;
 S3 persists the frontend's `scene.glb` export and the latest delivered `render.png`.
