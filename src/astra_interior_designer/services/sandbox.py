@@ -146,7 +146,7 @@ class SandboxService:
                 *self.launch_command,
                 app=app,
                 image=image,
-                gpu="RTX-PRO-6000",
+                gpu="L4",
                 cpu=4,
                 memory=16384,
                 timeout=timeout,
