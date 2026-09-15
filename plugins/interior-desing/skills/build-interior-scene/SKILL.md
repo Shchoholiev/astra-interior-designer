@@ -33,7 +33,9 @@ For pillows, rugs, paintings or framed prints, read [cushions, rugs, and wall ar
 
 Inspect evaluated geometry, shading, and normals before adding subdivision. Limit detailed modeling to what affects the output; background objects need less detail than foreground upholstery or flowers.
 
-Use [find-3d-models](../find-3d-models/SKILL.md) when a suitable existing asset would improve the requested object. Read [asset integration](references/asset-integration.md) before importing. Geometry or asset substitutions should preserve the user's constraints, not merely fill space.
+For photorealistic creation or refinement, read [find-3d-models](../find-3d-models/SKILL.md) before detailing prominent furniture, plants and decor, even when the user has not explicitly requested a download. Search the visible complex object groups, including decorative props, and import suitable accessible matches using [asset integration](references/asset-integration.md). A failed sofa search does not settle the choice of plants, lamps or other decor. Preserve the requested style, furniture footprints and placement; select for visual fit rather than availability alone.
+
+Record each prominent group's decision in the local asset record: source and imported object/collection names, reuse of an already verified asset, or the specific access/fit reason for custom modeling after search. Textures, HDRIs and reference photographs are not imported 3D objects. For an explicitly procedural or layout-only brief, use the requested construction approach without requiring asset searches. Review modeled fallbacks at delivery scale before accepting them as finished objects.
 
 Give visible clear windows an intentional outside view. For a fixed interior camera, a suitable exterior photograph on a plane beyond the glazing is a useful default. Read [window views](references/window-views.md) for sourcing, placement, and daylight interaction; a blank colored surface is not a finished exterior view.
 
