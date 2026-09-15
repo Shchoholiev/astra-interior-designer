@@ -29,7 +29,7 @@ For backsplashes, built-in appliances, cabinet hardware, or visible tableware, r
 
 Model architectural pieces with credible thickness, softened exposed edges, and contact surfaces. At a continuous wall–ceiling junction, align the meeting surfaces and inspect the evaluated seam: beveling every edge of separate boxes can open an artificial dark groove. Exclude internal contact edges from beveling while retaining appropriate exposed-edge treatment. Preserve intentional reveals, shadow gaps, and trim when specified. [Blender bevel controls](https://docs.blender.org/manual/en/4.4/modeling/modifiers/generate/bevel.html)
 
-For rugs, match pile/backing thickness and the edge profile to the intended textile. A beveled slab with raised border strips can still read as a rigid panel; use a coherent textile edge, including actual binding when present. Inspect floor support and furniture feet after thickness changes, correcting floating or buried contacts. Add fringe, curling, or irregularity only when appropriate to the rug, not as mandatory realism details.
+For pillows, rugs, paintings or framed prints, read [cushions, rugs, and wall art](references/cushions-rugs-and-art.md) before refining their geometry. Choose the intended construction first: a filled sewn cover, a woven floor textile, or a rigid support carrying an image. Match thickness, perimeter and surface relief to that choice; applying the same rounded, padded treatment to all three makes the room look plush. Preserve intentionally thick rugs or sculptural art when requested.
 
 Inspect evaluated geometry, shading, and normals before adding subdivision. Limit detailed modeling to what affects the output; background objects need less detail than foreground upholstery or flowers.
 
